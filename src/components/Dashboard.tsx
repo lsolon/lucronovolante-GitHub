@@ -1,4 +1,4 @@
-import { useMemo, ReactNode } from 'react';
+import { useMemo, ReactNode, useState } from 'react';
 import { motion } from 'motion/react';
 import { format } from 'date-fns';
 import { 
@@ -13,7 +13,8 @@ import {
   ChevronRight,
   Info,
   Share2,
-  Sparkles
+  Sparkles,
+  PlusCircle
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
@@ -30,6 +31,8 @@ interface DashboardProps {
     dailyExpenses: number;
     todayEarnings: number;
     todayExpenses: number;
+    paidFixedCostsDetails: { item: string; valor: number; data: string }[];
+    unpaidFixedCosts: string[];
   };
   fixedCosts: FixedCost[];
   nextOilChange: number | null;
@@ -58,7 +61,24 @@ export default function Dashboard({
   isAdmin,
   uniqueVisitors
 }: DashboardProps) {
+  const [showDetails, setShowDetails] = useState(false);
   const currentMonthStr = format(new Date(), 'yyyy-MM');
+  const isNewUser = fixedCosts.length === 0 && entries.length === 0;
+  
+  const dailyWorkBurden = useMemo(() => {
+    const workedDays = new Set(
+      entries.filter(e => e.categoriaId === '10').map(e => e.data)
+    ).size;
+    if (workedDays === 0) return null;
+
+    const totalFixed = fixedCosts.reduce((acc, fc) => acc + fc.valorMensal, 0);
+    const totalExpenses = entries
+      .filter(e => e.tipo === 'Despesa')
+      .reduce((acc, e) => acc + e.valor, 0);
+
+    return (totalFixed + totalExpenses) / workedDays;
+  }, [entries, fixedCosts]);
+
   const activeFixedCosts = useMemo(() => {
     return fixedCosts.filter(fc => {
       const start = fc.dataInicio || '0000-00';
@@ -68,21 +88,25 @@ export default function Dashboard({
   }, [fixedCosts, currentMonthStr]);
 
   const statusMessage = useMemo(() => {
-    const sortedCosts = [...activeFixedCosts].sort((a, b) => a.valorMensal - b.valorMensal);
-    let cumulative = 0;
-    
-    for (const cost of sortedCosts) {
-      cumulative += cost.valorMensal;
-      if (totals.earnings < cumulative) {
-        return { 
-          text: `Meta: Pagando ${cost.item}`, 
-          icon: <AlertCircle className="text-amber-500" /> 
-        };
-      }
+    if (totals.progress >= 100) {
+      return { 
+        text: "Lucro real liberado!", 
+        icon: <CheckCircle2 className="text-emerald-500" /> 
+      };
     }
     
-    return { text: "LUCRO REAL LIBERADO!", icon: <CheckCircle2 className="text-emerald-500" /> };
-  }, [totals.earnings, activeFixedCosts]);
+    if (totals.unpaidFixedCosts && totals.unpaidFixedCosts.length > 0) {
+      return {
+        text: `Pendentes: ${totals.unpaidFixedCosts.join(', ')}`,
+        icon: <AlertCircle className="text-amber-500" />
+      };
+    }
+    
+    return { 
+      text: "Pagando despesas de rua...", 
+      icon: <AlertCircle className="text-amber-500" /> 
+    };
+  }, [totals.progress, totals.unpaidFixedCosts]);
 
   const oilStatus = useMemo(() => {
     if (!nextOilChange) return null;
@@ -174,6 +198,25 @@ export default function Dashboard({
 
   return (
     <div className="space-y-6">
+      {/* Welcome Card for New Users */}
+      {isNewUser && (
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-3xl shadow-xl shadow-blue-900/40 border border-blue-400/20">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-white/20 rounded-2xl">
+              <Sparkles className="text-white size-7" />
+            </div>
+            <div>
+              <h2 className="text-xl font-black tracking-tight">Bem-vindo ao LucroNoVolante!</h2>
+              <p className="text-blue-100 text-sm opacity-90">Vamos configurar seu painel para começar a lucrar mais.</p>
+            </div>
+          </div>
+          <div className="space-y-3 mb-6 text-sm text-blue-50">
+            <p className="flex items-center gap-2"><PlusCircle size={16} /> 1. Configure seus <span className="font-bold underline">Custos Fixos</span> no menu de configurações.</p>
+            <p className="flex items-center gap-2"><PlusCircle size={16} /> 2. Faça seus primeiros <span className="font-bold underline">lançamentos de ganhos e gastos</span>.</p>
+          </div>
+        </div>
+      )}
+      
       {/* Share App Button */}
       <div className="grid grid-cols-2 gap-3">
         <button 
@@ -412,19 +455,67 @@ export default function Dashboard({
 
       {/* Saldo a Pagar Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-rose-500/10 rounded-xl">
               <TrendingDown className="text-rose-400 size-5" />
             </div>
             <h3 className="font-bold text-white">Saldo a Pagar (Dívida Total)</h3>
           </div>
+          <button 
+            onClick={() => setShowDetails(!showDetails)}
+            className="p-2 hover:bg-white/10 rounded-full transition-colors"
+          >
+             <Info className={cn("text-white/50 size-5", showDetails && "text-white")} />
+          </button>
           <span className="text-lg font-black text-rose-400">{formatCurrency(totals.balanceToPay)}</span>
         </div>
-        <p className="text-[10px] text-blue-200 font-medium leading-tight">
-          Soma dos Custos Fixos restantes + Despesas de Rua do mês.
-        </p>
+        
+        {showDetails && totals.paidFixedCostsDetails && (
+          <div className="mt-4 pt-4 border-t border-white/10 space-y-4">
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs text-blue-200">
+                <span>Total Custos Fixos:</span>
+                <span>{formatCurrency(totals.totalFixedCosts)}</span>
+              </div>
+              <div className="flex justify-between text-xs text-blue-200">
+                <span>Despesas Rua:</span>
+                <span>{formatCurrency(totals.dailyExpenses)}</span>
+              </div>
+            </div>
+            {totals.paidFixedCostsDetails.length > 0 && (
+              <div>
+                <p className="text-[10px] text-blue-200 font-black uppercase mb-2">Custos Fixos Pagos</p>
+                <div className="space-y-1">
+                  {totals.paidFixedCostsDetails.map((pf, idx) => (
+                    <div key={idx} className="flex justify-between text-xs text-emerald-400 font-medium">
+                      <span>{pf.item} ({pf.data.replace(/\//g, '-')})</span>
+                      <span>{formatCurrency(pf.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {dailyWorkBurden !== null && (
+        <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-500/10 rounded-xl">
+                <Target className="text-emerald-400 size-5" />
+              </div>
+              <h3 className="font-bold text-white">Custo Médio p/ Dia Trabalhado</h3>
+            </div>
+            <span className="text-lg font-black text-emerald-400">{formatCurrency(dailyWorkBurden)}</span>
+          </div>
+          <p className="text-[10px] text-blue-200 font-medium leading-tight">
+            (Total Custos Fixos + Total Despesas) divididos pelos dias com "Fechamento".
+          </p>
+        </div>
+      )}
 
       {/* Fixed Costs Summary */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">

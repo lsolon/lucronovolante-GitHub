@@ -432,6 +432,17 @@ export default function App() {
     // Real Profit = Earnings - Daily Expenses - Total Fixed Costs
     // This correctly accounts for the fixed costs once, regardless of whether they were paid or not
     const balance = earnings - dailyExpenses - totalFixedCosts;
+    
+    // Prepare detail of paid fixed costs
+    const paidFixedCostsDetails = fixedCostPayments.map(e => {
+        const cat = state.categories.find(c => c.id === e.categoriaId);
+        return {
+            item: cat?.nome || 'Despesa',
+            valor: e.valor,
+            data: e.data
+        };
+    });
+
     const todayStr = format(now, 'yyyy/MM/dd');
     const todayEntries = currentMonthEntries.filter(e => e.data === todayStr);
 
@@ -456,9 +467,26 @@ export default function App() {
 
     const todayExpenses = todayExpensesRaw - todayFixedCostPayments;
 
-    const progress = totalFixedCosts > 0 ? Math.min(100, (earnings / totalFixedCosts) * 100) : 100;
+    const totalMonthlyObligations = totalFixedCosts + dailyExpenses;
+    const progress = totalMonthlyObligations > 0 
+        ? Math.min(100, (earnings / totalMonthlyObligations) * 100) 
+        : 100;
+
+    // Identify unpaid fixed costs
+    const unpaidFixedCosts = activeFixedCosts.filter(fc => {
+        const paidAmount = fixedCostPayments
+            .filter(e => {
+                const cat = state.categories.find(c => c.id === e.categoriaId);
+                const categoryName = cat?.nome.toLowerCase() || '';
+                const obs = e.obs?.toLowerCase() || '';
+                const fcItem = fc.item.toLowerCase();
+                return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
+            })
+            .reduce((acc, e) => acc + e.valor, 0);
+        return paidAmount < fc.valorMensal;
+    }).map(fc => fc.item);
     
-    return { earnings, expenses, totalFixedCosts, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses };
+    return { earnings, expenses, totalFixedCosts, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts };
   }, [currentMonthEntries, state.fixedCosts, state.categories]);
 
   const nextOilChange = useMemo(() => {
