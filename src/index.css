@@ -56,7 +56,7 @@ input, select, textarea, option {
 
 /* Ensure placeholders are visible but distinct */
 input::placeholder, textarea::placeholder {
-  color: #f0105b !important;
+  color: #d10d4f !important;
   opacity: 0.6;
 }
 
