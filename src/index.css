@@ -79,7 +79,7 @@ input::placeholder, textarea::placeholder {
 #root select,
 #root textarea {
   color: #131011 !important;
-  background-color: #dcdedf !important;
+  background-color: #ffffff !important;
 }
 
 /* Exception for the scanner modal which is dark - use theme text */
