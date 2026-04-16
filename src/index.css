@@ -50,7 +50,7 @@
 
 /* Fix for mobile input visibility and contrast */
 input, select, textarea, option {
-  color: #0f172a !important; /* text-slate-900 */
+  color: #181717 !important; /* text-slate-900 */
   background-color: #ffffff !important; /* bg-white */
 }
 

@@ -252,7 +252,7 @@ export default function Dashboard({
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-white rounded-2xl shadow-lg shadow-blue-900/20">
-                <Target className="text-[#0047AB] size-5" />
+                <Target className="text-blue-600 size-5" />
               </div>
               <div>
                 <h3 className="font-black text-white text-lg tracking-tight">Meta Diária</h3>
@@ -320,8 +320,8 @@ export default function Dashboard({
       {/* Status Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
         <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-white/5 rounded-xl">
-            <Target className="text-blue-300 size-5" />
+          <div className="p-2.5 bg-blue-500/20 rounded-2xl">
+            <Target className="text-blue-600 size-5" />
           </div>
           <h3 className="font-bold text-white">Status do Objetivo</h3>
         </div>
@@ -357,7 +357,7 @@ export default function Dashboard({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-500/20 rounded-2xl">
-              <Fuel className="text-blue-300 size-5" />
+              <Fuel className="text-blue-600 size-5" />
             </div>
             <h3 className="font-bold text-white">Manutenção e Revisão</h3>
           </div>
@@ -402,7 +402,7 @@ export default function Dashboard({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-blue-500/20 rounded-2xl">
-                <Car className="text-blue-300 size-5" />
+                <Car className="text-blue-600 size-5" />
               </div>
               <h3 className="font-bold text-white">Meta de Kilometragem</h3>
             </div>
