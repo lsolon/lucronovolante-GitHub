@@ -51,7 +51,7 @@
 /* Fix for mobile input visibility and contrast */
 input, select, textarea, option {
   color: #131011 !important;
-  background-color: #dcdedf !important;
+  background-color: #9dacb4 !important;
 }
 
 /* Ensure placeholders are visible but distinct */
@@ -71,7 +71,7 @@ input::placeholder, textarea::placeholder {
 .dark-context select,
 .dark-context textarea {
   color: #131011 !important;
-  background-color: #dcdedf !important;
+  background-color: #9dacb4 !important;
 }
 
 /* Specific fix for the main app container */
@@ -90,7 +90,7 @@ input::placeholder, textarea::placeholder {
 .fixed.inset-0.bg-slate-900 select,
 .fixed.inset-0.bg-slate-900 textarea {
   color: #131011 !important;
-  background-color: #dcdedf !important;
+  background-color: #9dacb4 !important;
 }
 
 /* Fix for native select appearance on mobile */
