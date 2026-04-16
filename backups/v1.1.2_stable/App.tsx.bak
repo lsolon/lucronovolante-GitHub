@@ -1,0 +1,854 @@
+import { useState, useEffect, useMemo, ReactNode } from 'react';
+import { 
+  LayoutDashboard, 
+  Fuel, 
+  History, 
+  BarChart3, 
+  Settings, 
+  PlusCircle, 
+  X, 
+  LogOut,
+  MapPin,
+  AlertCircle,
+  RefreshCw
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut,
+  User
+} from 'firebase/auth';
+import { 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  collection, 
+  query, 
+  orderBy, 
+  deleteDoc,
+  getDoc,
+  updateDoc,
+  serverTimestamp,
+  increment
+} from 'firebase/firestore';
+import { auth, db } from './firebase';
+import firebaseConfig from '../firebase-applet-config.json';
+import { 
+  AppState, 
+  Entry, 
+  FixedCost, 
+  Category, 
+  AppSheetMapping, 
+  MaintenanceInterval,
+  AppConfig
+} from './types';
+import { cn, cleanObject } from './lib/utils';
+import Dashboard from './components/Dashboard';
+import EntryForm from './components/EntryForm';
+import EntryList from './components/EntryList';
+import MaintenanceView from './components/MaintenanceView';
+import ReportsView from './components/ReportsView';
+import SettingsView from './components/SettingsView';
+import FuelMap from './components/FuelMap';
+import TutorialModal from './components/TutorialModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import AIVideoStudio from './components/AIVideoStudio';
+
+// Versão do Aplicativo para controle de cache e atualizações
+const APP_VERSION = '1.1.2';
+
+const INITIAL_CATEGORIES: Category[] = [
+  { id: '1', nome: 'Combustível' },
+  { id: '2', nome: 'Manutenção' },
+  { id: '3', nome: 'Limpeza' },
+  { id: '4', nome: 'Seguro' },
+  { id: '5', nome: 'Aluguel/Parcela' },
+  { id: '6', nome: 'Alimentação' },
+  { id: '7', nome: 'Internet/Celular' },
+  { id: '8', nome: 'Impostos/Taxas' },
+  { id: '9', nome: 'Outros' },
+  { id: '10', nome: 'Fechamento do Dia' }
+];
+
+const INITIAL_EARNING_CATEGORIES: Category[] = [
+  { id: 'uber', nome: 'Uber' },
+  { id: '99', nome: '99' },
+  { id: 'indrive', nome: 'InDrive' },
+  { id: 'particular', nome: 'Particular' },
+  { id: 'outros', nome: 'Outros' }
+];
+
+const INITIAL_MAINTENANCE_INTERVALS: MaintenanceInterval[] = [
+  { id: '1', item: 'Troca de Óleo', intervaloKm: 10000 },
+  { id: '2', item: 'Filtro de Ar', intervaloKm: 20000 },
+  { id: '3', item: 'Filtro de Combustível', intervaloKm: 20000 },
+  { id: '4', item: 'Velas de Ignição', intervaloKm: 40000 },
+  { id: '5', item: 'Correia Dentada', intervaloKm: 60000 },
+  { id: '6', item: 'Pneus', intervaloKm: 50000 },
+  { id: '7', item: 'Freios', intervaloKm: 30000 }
+];
+
+export default function App() {
+  // --- Version Control & Cache Management ---
+  useEffect(() => {
+    const lastVersion = localStorage.getItem('app_version');
+    if (lastVersion && lastVersion !== APP_VERSION) {
+      console.log(`Nova versão detectada: ${APP_VERSION} (anterior: ${lastVersion}). Limpando cache...`);
+      
+      // Clear Service Worker cache if possible
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+          localStorage.setItem('app_version', APP_VERSION);
+          window.location.reload();
+        });
+      } else {
+        localStorage.setItem('app_version', APP_VERSION);
+        window.location.reload();
+      }
+    } else if (!lastVersion) {
+      localStorage.setItem('app_version', APP_VERSION);
+    }
+  }, []);
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'maintenance' | 'history' | 'map' | 'reports' | 'settings'>('dashboard');
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [dismissedTutorialSession, setDismissedTutorialSession] = useState(false);
+  const [isAIVideoStudioOpen, setIsAIVideoStudioOpen] = useState(false);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  const [state, setState] = useState<AppState>({
+    entries: [],
+    fixedCosts: [],
+    categories: INITIAL_CATEGORIES,
+    earningCategories: INITIAL_EARNING_CATEGORIES,
+    currentKm: 0,
+    targetKm: 5000,
+    maintenanceIntervals: INITIAL_MAINTENANCE_INTERVALS,
+    appConfig: {
+      publishedVersion: '1.0.0',
+      betaVersion: '1.0.0',
+      maintenanceMode: false
+    }
+  });
+
+  // Monitor network status
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+      setLoading(false);
+      if (user) {
+        // Update user profile in Firestore
+        const userRef = doc(db, 'users', user.uid);
+        setDoc(userRef, {
+          email: user.email,
+          displayName: user.displayName,
+          lastSeen: new Date().toISOString(),
+          visitCount: increment(1)
+        }, { merge: true });
+
+        // Update global stats (excluding admin)
+        if (user.email !== 'leandrosolon@gmail.com') {
+          const statsRef = doc(db, 'stats', 'global');
+          setDoc(statsRef, {
+            totalVisits: increment(1),
+            lastUpdate: serverTimestamp()
+          }, { merge: true });
+        }
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Firestore Sync - User Data
+  useEffect(() => {
+    if (!user) return;
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribeUser = onSnapshot(userRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        setState(prev => ({
+          ...prev,
+          fixedCosts: data.fixedCosts || [],
+          categories: data.categories || INITIAL_CATEGORIES,
+          earningCategories: data.earningCategories || INITIAL_EARNING_CATEGORIES,
+          currentKm: data.currentKm || 0,
+          targetKm: data.targetKm || 5000,
+          maintenanceIntervals: data.maintenanceIntervals || INITIAL_MAINTENANCE_INTERVALS,
+          appSheetMapping: data.appSheetMapping,
+          hasSeenTutorial: data.hasSeenTutorial || false,
+          tutorialOptOut: data.tutorialOptOut || false,
+          role: data.role || 'user'
+        }));
+      } else {
+        // Initialize user doc if it doesn't exist
+        setDoc(userRef, {
+          fixedCosts: [],
+          categories: INITIAL_CATEGORIES,
+          earningCategories: INITIAL_EARNING_CATEGORIES,
+          currentKm: 0,
+          targetKm: 5000,
+          maintenanceIntervals: INITIAL_MAINTENANCE_INTERVALS,
+          trialStartDate: new Date().toISOString(),
+          role: user.email === 'leandrosolon@gmail.com' ? 'admin' : 'user'
+        });
+      }
+    });
+
+    const entriesRef = collection(db, 'users', user.uid, 'entries');
+    const q = query(entriesRef, orderBy('data', 'desc'), orderBy('createdAt', 'desc'));
+    const unsubscribeEntries = onSnapshot(q, (snapshot) => {
+      const entriesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Entry[];
+      setState(prev => ({ ...prev, entries: entriesData }));
+    });
+
+    return () => {
+      unsubscribeUser();
+      unsubscribeEntries();
+    };
+  }, [user]);
+
+  // Firestore Sync - App Config (Versions, Maintenance)
+  useEffect(() => {
+    const configRef = doc(db, 'config', 'app');
+    const unsubscribe = onSnapshot(configRef, (doc) => {
+      if (doc.exists()) {
+        const config = doc.data() as AppConfig;
+        console.log("App Config Loaded:", config);
+        setState(prev => ({ ...prev, appConfig: config }));
+      } else {
+        console.log("App Config not found in Firestore, using defaults.");
+        // If config doesn't exist, use defaults so admin can still see the UI
+        setState(prev => ({ 
+          ...prev, 
+          appConfig: {
+            publishedVersion: '1.0.0',
+            betaVersion: '1.0.0',
+            maintenanceMode: false
+          }
+        }));
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  const isAdmin = useMemo(() => {
+    if (!user?.email) return false;
+    const email = user.email.toLowerCase().trim();
+    return email === 'leandrosolon@gmail.com' || state.role === 'admin';
+  }, [user, state.role]);
+
+  // Beta Mode Check: Yellow text only if betaVersion != publishedVersion
+  const isBeta = useMemo(() => {
+    if (!state.appConfig) return false;
+    return state.appConfig.betaVersion !== state.appConfig.publishedVersion;
+  }, [state.appConfig]);
+
+  const handleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      // Use popup for better compatibility in this environment
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      console.error('Erro ao fazer login:', error);
+      alert('Erro ao fazer login. Tente novamente.');
+    }
+  };
+
+  const handleLogout = () => signOut(auth);
+
+  const handleAddEntry = async (entry: Omit<Entry, 'id'>) => {
+    if (!user) return;
+    try {
+      const entriesRef = collection(db, 'users', user.uid, 'entries');
+      const entryData = cleanObject(entry);
+      
+      if (editingEntry) {
+        await setDoc(doc(entriesRef, editingEntry.id), entryData, { merge: true });
+        setEditingEntry(null);
+      } else {
+        await setDoc(doc(entriesRef, crypto.randomUUID()), entryData);
+      }
+      
+      // Update current KM if this entry has a higher KM
+      if (entry.km && entry.km > state.currentKm) {
+        await setDoc(doc(db, 'users', user.uid), { currentKm: entry.km }, { merge: true });
+      }
+      
+      setIsEntryModalOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar lançamento:', error);
+      alert('Erro ao salvar lançamento. Verifique sua conexão.');
+    }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    if (!user || !window.confirm('Deseja realmente excluir este lançamento?')) return;
+    try {
+      await deleteDoc(doc(db, 'users', user.uid, 'entries', id));
+    } catch (error) {
+      console.error('Erro ao excluir lançamento:', error);
+    }
+  };
+
+  const handleUpdateFixedCosts = (costs: FixedCost[]) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { fixedCosts: cleanObject(costs) }, { merge: true });
+  };
+
+  const handleUpdateCategories = (categories: Category[]) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { categories: cleanObject(categories) }, { merge: true });
+  };
+
+  const handleUpdateEarningCategories = (categories: Category[]) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { earningCategories: cleanObject(categories) }, { merge: true });
+  };
+
+  const handleUpdateAppSheetMapping = (mapping: AppSheetMapping) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { appSheetMapping: cleanObject(mapping) }, { merge: true });
+  };
+
+  const handleUpdateTargetKm = (km: number) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { targetKm: km }, { merge: true });
+  };
+
+  const handleUpdateCurrentKm = (km: number) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { currentKm: km }, { merge: true });
+  };
+
+  const handleUpdateMaintenanceIntervals = (intervals: MaintenanceInterval[]) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid), { maintenanceIntervals: cleanObject(intervals) }, { merge: true });
+  };
+
+  const handleUpdateEntries = async (newEntries: Entry[]) => {
+    if (!user) return;
+    // For bulk updates, we'd ideally use a batch, but for simplicity:
+    const entriesRef = collection(db, 'users', user.uid, 'entries');
+    for (const entry of newEntries) {
+      const { id, ...data } = entry;
+      await setDoc(doc(entriesRef, id), cleanObject(data));
+    }
+  };
+
+  const handleUpdateAppConfig = (config: AppConfig) => {
+    if (!isAdmin) return;
+    setDoc(doc(db, 'config', 'app'), cleanObject(config), { merge: true });
+  };
+
+  const handleCloseTutorial = (dontShowAgain: boolean) => {
+    setDismissedTutorialSession(true);
+    if (dontShowAgain && user) {
+      setDoc(doc(db, 'users', user.uid), { tutorialOptOut: true }, { merge: true });
+    }
+  };
+
+  const handleStartWithExamples = async () => {
+    if (!user) return;
+    
+    const exampleEntries: Omit<Entry, 'id'>[] = [
+      {
+        data: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
+        createdAt: new Date().toISOString(),
+        tipo: 'Ganhos',
+        categoriaId: '10',
+        valor: 350.50,
+        km: state.currentKm + 120,
+        ganhos: { 'uber': 200, '99': 150.50 },
+        obs: 'Exemplo: Ótima sexta-feira!'
+      },
+      {
+        data: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
+        createdAt: new Date().toISOString(),
+        tipo: 'Despesa',
+        categoriaId: '1',
+        valor: 150.00,
+        km: state.currentKm + 10,
+        posto: 'Posto Ipiranga',
+        combustivel: 'Gasolina',
+        quantidade: 25.5,
+        valorUnitario: 5.89,
+        obs: 'Exemplo: Abastecimento completo'
+      }
+    ];
+
+    for (const entry of exampleEntries) {
+      await handleAddEntry(entry);
+    }
+    
+    handleCloseTutorial(true);
+  };
+
+  const totals = useMemo(() => {
+    const earnings = state.entries
+      .filter(e => e.tipo === 'Ganhos')
+      .reduce((acc, curr) => acc + curr.valor, 0);
+    
+    const expenses = state.entries
+      .filter(e => e.tipo === 'Despesa')
+      .reduce((acc, curr) => acc + curr.valor, 0);
+    
+    return { earnings, expenses, balance: earnings - expenses };
+  }, [state.entries]);
+
+  const lastRecordedKm = useMemo(() => {
+    const kmEntries = state.entries.filter(e => e.km && e.km > 0);
+    if (kmEntries.length === 0) return state.currentKm;
+    return Math.max(...kmEntries.map(e => e.km || 0), state.currentKm);
+  }, [state.entries, state.currentKm]);
+
+  const nextOilChange = useMemo(() => {
+    const oilEntries = state.entries.filter(e => e.categoriaId === '2' && e.obs?.toLowerCase().includes('óleo'));
+    if (oilEntries.length === 0) return 0;
+    const lastOilKm = Math.max(...oilEntries.map(e => e.km || 0));
+    const interval = state.maintenanceIntervals.find(i => i.item.toLowerCase().includes('óleo'))?.intervaloKm || 10000;
+    return lastOilKm + interval;
+  }, [state.entries, state.maintenanceIntervals]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+        <div className="text-center space-y-4">
+          <div className="relative size-20 mx-auto">
+            <div className="absolute inset-0 border-4 border-blue-500/20 rounded-full" />
+            <div className="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <p className="text-blue-400 font-black uppercase tracking-widest animate-pulse">Carregando LucroNoVolante...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 relative overflow-hidden">
+        {/* Background elements */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(37,99,235,0.1),transparent_50%)]" />
+        <div className="absolute -top-24 -right-24 size-96 bg-blue-600/10 rounded-full blur-3xl" />
+        <div className="absolute -bottom-24 -left-24 size-96 bg-indigo-600/10 rounded-full blur-3xl" />
+
+        <div className="max-w-md w-full space-y-8 relative z-10">
+          <div className="text-center space-y-4">
+            <div className="inline-flex p-4 bg-blue-600 rounded-[2rem] shadow-2xl shadow-blue-500/20 mb-2">
+              <LayoutDashboard className="size-12 text-white" />
+            </div>
+            <h1 className="text-4xl font-black text-white tracking-tight">
+              LucroNo<span className="text-blue-500">Volante</span>
+            </h1>
+            <p className="text-slate-400 font-medium text-lg px-4">
+              A ferramenta definitiva para o motorista de aplicativo profissional.
+            </p>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-xl p-8 rounded-[2.5rem] border border-white/10 shadow-2xl space-y-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="p-2 bg-emerald-500/20 rounded-xl">
+                  <BarChart3 className="text-emerald-500 size-6" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Lucro Real</h3>
+                  <p className="text-slate-400 text-xs">Saiba exatamente quanto sobra no bolso.</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                <div className="p-2 bg-blue-500/20 rounded-xl">
+                  <Fuel className="text-blue-500 size-6" />
+                </div>
+                <div>
+                  <h3 className="text-white font-bold">Gestão de Manutenção</h3>
+                  <p className="text-slate-400 text-xs">Nunca mais perca o prazo da troca de óleo.</p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleLogin}
+              className="w-full py-5 bg-blue-600 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-600/20 hover:bg-blue-700 hover:scale-[1.02] transition-all active:scale-95 flex items-center justify-center gap-3"
+            >
+              Entrar com Google
+            </button>
+            <p className="text-center text-slate-500 text-[10px] font-bold uppercase tracking-widest">
+              Acesso seguro via Firebase Auth
+            </p>
+          </div>
+          
+          <div className="text-center">
+            <p className="text-slate-500 text-xs font-medium">
+              Desenvolvido para motoristas que buscam resultados.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Maintenance Mode Check
+  if (state.appConfig?.maintenanceMode && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-center">
+        <div className="max-w-xs space-y-6">
+          <div className="p-6 bg-amber-500/10 rounded-full inline-block">
+            <AlertCircle className="size-16 text-amber-500" />
+          </div>
+          <h1 className="text-2xl font-black text-white">Manutenção</h1>
+          <p className="text-slate-400 text-sm leading-relaxed">
+            Estamos realizando melhorias no sistema. Voltaremos em breve com novidades!
+          </p>
+          <button 
+            onClick={handleLogout}
+            className="text-blue-500 font-bold text-sm uppercase tracking-widest"
+          >
+            Sair da Conta
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      <div className={cn(
+        "min-h-screen bg-slate-50 pb-32 transition-colors duration-500",
+        isBeta && "beta-mode"
+      )}>
+      {/* Beta Mode Banner */}
+      {isBeta && (
+        <div className="bg-yellow-400 text-slate-900 py-1 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-center sticky top-0 z-[60] shadow-sm">
+          Modo Beta Ativo • Apenas para Administradores
+        </div>
+      )}
+
+      {/* Offline Indicator */}
+      {isOffline && (
+        <div className="bg-rose-600 text-white py-1 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-center sticky top-0 z-[60] shadow-sm">
+          Você está Offline • Algumas funções podem não funcionar
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="bg-slate-900 text-white p-6 rounded-b-[2.5rem] shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600/10 rounded-full blur-3xl -mr-32 -mt-32" />
+        <div className="max-w-md mx-auto relative z-10">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="size-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <LayoutDashboard size={20} />
+              </div>
+              <div>
+                <h1 className="text-xl font-black tracking-tight">LucroNoVolante</h1>
+                <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">
+                  {user.displayName || 'Motorista'}
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+              title="Sair"
+            >
+              <LogOut size={18} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-md mx-auto p-4">
+        <AnimatePresence mode="wait">
+          {activeTab === 'dashboard' && (
+            <motion.div
+              key="dashboard"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Dashboard 
+                totals={totals} 
+                fixedCosts={state.fixedCosts} 
+                nextOilChange={nextOilChange}
+                currentKm={lastRecordedKm}
+                targetKm={state.targetKm}
+                maintenanceIntervals={state.maintenanceIntervals}
+                entries={state.entries}
+                categories={state.categories}
+                onViewMaintenance={() => setActiveTab('maintenance')}
+                onOpenAIStudio={() => setIsAIVideoStudioOpen(true)}
+                isAdmin={user?.email === 'leandrosolon@gmail.com'}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'maintenance' && (
+            <motion.div
+              key="maintenance"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <MaintenanceView 
+                currentKm={lastRecordedKm}
+                maintenanceIntervals={state.maintenanceIntervals}
+                entries={state.entries}
+                categories={state.categories}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'history' && (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <EntryList 
+                entries={state.entries} 
+                categories={state.categories} 
+                onDelete={handleDeleteEntry} 
+                onEdit={(entry) => {
+                  setEditingEntry(entry);
+                  setIsEntryModalOpen(true);
+                }}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'map' && user?.email === 'leandrosolon@gmail.com' && (
+            <motion.div
+              key="map"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <FuelMap 
+                entries={state.entries}
+                categories={state.categories}
+                activeTab={activeTab}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'reports' && (
+            <motion.div
+              key="reports"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <ReportsView 
+                entries={state.entries} 
+                categories={state.categories} 
+              />
+            </motion.div>
+          )}
+          {activeTab === 'settings' && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <SettingsView 
+                fixedCosts={state.fixedCosts} 
+                onUpdateFixedCosts={handleUpdateFixedCosts}
+                earningCategories={state.earningCategories}
+                onUpdateEarningCategories={handleUpdateEarningCategories}
+                entries={state.entries}
+                onUpdateEntries={handleUpdateEntries}
+                categories={state.categories}
+                onUpdateCategories={handleUpdateCategories}
+                appSheetMapping={state.appSheetMapping}
+                onUpdateAppSheetMapping={handleUpdateAppSheetMapping}
+                targetKm={state.targetKm}
+                onUpdateTargetKm={handleUpdateTargetKm}
+                currentKm={state.currentKm}
+                onUpdateCurrentKm={handleUpdateCurrentKm}
+                lastRecordedKm={lastRecordedKm}
+                maintenanceIntervals={state.maintenanceIntervals}
+                onUpdateMaintenanceIntervals={handleUpdateMaintenanceIntervals}
+                isAdmin={isAdmin}
+                appConfig={state.appConfig}
+                onUpdateAppConfig={handleUpdateAppConfig}
+                isAIVideoStudioOpen={isAIVideoStudioOpen}
+                setIsAIVideoStudioOpen={setIsAIVideoStudioOpen}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Footer Version Info */}
+      <footer className="py-6 px-4 text-center space-y-2">
+        <p className="text-[10px] text-blue-300/50 font-medium">
+          v{APP_VERSION}
+        </p>
+        {isAdmin && (
+          <div className="text-[8px] text-blue-300/30 font-mono space-y-1">
+            <p>Project: {firebaseConfig.projectId}</p>
+            <p>DB: {firebaseConfig.firestoreDatabaseId}</p>
+          </div>
+        )}
+      </footer>
+      <button
+        onClick={() => {
+          setEditingEntry(null);
+          setIsEntryModalOpen(true);
+        }}
+        className="fixed bottom-24 right-6 bg-blue-600 text-white p-4 rounded-full shadow-xl hover:bg-blue-700 transition-colors z-40"
+      >
+        <PlusCircle className="size-8" />
+      </button>
+
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2 z-30">
+        <div className="max-w-md mx-auto flex justify-around items-center">
+          <NavButton 
+            active={activeTab === 'dashboard'} 
+            onClick={() => setActiveTab('dashboard')} 
+            icon={<LayoutDashboard />} 
+            label="Painel" 
+          />
+          <NavButton 
+            active={activeTab === 'maintenance'} 
+            onClick={() => setActiveTab('maintenance')} 
+            icon={<Fuel />} 
+            label="Revisão" 
+          />
+          <NavButton 
+            active={activeTab === 'history'} 
+            onClick={() => setActiveTab('history')} 
+            icon={<History />} 
+            label="Histórico" 
+          />
+          {user?.email?.toLowerCase() === 'leandrosolon@gmail.com' && (
+            <NavButton 
+              active={activeTab === 'map'} 
+              onClick={() => setActiveTab('map')} 
+              icon={<MapPin />} 
+              label="Mapa" 
+            />
+          )}
+          <NavButton 
+            active={activeTab === 'reports'} 
+            onClick={() => setActiveTab('reports')} 
+            icon={<BarChart3 />} 
+            label="Relatórios" 
+          />
+          <NavButton 
+            active={activeTab === 'settings'} 
+            onClick={() => setActiveTab('settings')} 
+            icon={<Settings />} 
+            label="Custos" 
+          />
+        </div>
+        <div className="text-[8px] text-slate-300 text-center mt-1 font-bold">v{APP_VERSION}</div>
+      </nav>
+
+      {/* Entry Modal */}
+      <AnimatePresence>
+        {!state.tutorialOptOut && !dismissedTutorialSession && user && (
+          <TutorialModal 
+            onClose={(dontShowAgain) => handleCloseTutorial(dontShowAgain)} 
+            onStartWithExamples={handleStartWithExamples}
+          />
+        )}
+        {isAIVideoStudioOpen && (
+          <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
+        )}
+        {isEntryModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEntryModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl text-slate-900"
+            >
+              <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 className="font-bold text-lg">{editingEntry ? 'Editar Lançamento' : 'Novo Lançamento'}</h2>
+                <button 
+                  onClick={() => {
+                    setIsEntryModalOpen(false);
+                    setEditingEntry(null);
+                  }}
+                  className="p-2 hover:bg-slate-200 rounded-full transition-colors"
+                >
+                  <X className="size-6" />
+                </button>
+              </div>
+              <div className="p-4 max-h-[80vh] overflow-y-auto">
+                <EntryForm 
+                  onSubmit={handleAddEntry} 
+                  categories={state.categories} 
+                  earningCategories={state.earningCategories}
+                  lastKm={lastRecordedKm}
+                  entries={state.entries}
+                  initialData={editingEntry || undefined}
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+function NavButton({ active, onClick, icon, label }: { active: boolean, onClick: () => void, icon: ReactNode, label: string }) {
+  return (
+    <button 
+      onClick={onClick}
+      className={cn(
+        "flex flex-col items-center gap-1 p-2 transition-all duration-200",
+        active ? "text-blue-600 scale-110" : "text-slate-500 hover:text-slate-700"
+      )}
+    >
+      <div className={cn(
+        "p-1 rounded-xl transition-colors",
+        active ? "bg-blue-50" : "bg-transparent"
+      )}>
+        {icon}
+      </div>
+      <span className="text-[10px] font-bold uppercase tracking-wider">{label}</span>
+      {active && (
+        <motion.div 
+          layoutId="nav-indicator"
+          className="w-1 h-1 bg-blue-600 rounded-full mt-0.5"
+        />
+      )}
+    </button>
+  );
+}

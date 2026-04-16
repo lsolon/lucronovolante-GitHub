@@ -1,0 +1,343 @@
+// Part 3 of SettingsView.tsx backup
+      {activeSection === 'data' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+            {importStatus && (
+              <div className={cn(
+                "p-4 rounded-2xl flex items-center gap-3 border",
+                importStatus.success ? "bg-emerald-50 border-emerald-100 text-emerald-700" : "bg-rose-50 border-rose-100 text-rose-700"
+              )}>
+                {importStatus.success ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
+                <p className="text-sm font-bold">{importStatus.message}</p>
+              </div>
+            )}
+
+            {pendingImport ? (
+              <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100 space-y-4">
+                <div className="flex items-center gap-3 text-blue-700">
+                  <FileSpreadsheet size={24} />
+                  <div>
+                    <h3 className="font-bold">Confirmar Importação</h3>
+                    <p className="text-xs opacity-80">Encontramos {pendingImport.length} lançamentos no arquivo.</p>
+                  </div>
+                </div>
+                <p className="text-xs text-blue-600 font-medium">
+                  Atenção: Ao confirmar, todos os seus dados atuais serão substituídos pelos dados deste arquivo.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={confirmImport}
+                    className="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all"
+                  >
+                    Confirmar e Importar
+                  </button>
+                  <button
+                    onClick={() => setPendingImport(null)}
+                    className="px-4 bg-white text-slate-600 border border-slate-200 py-3 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                      <Database size={20} className="text-blue-600" />
+                      Sincronizar AppSheet
+                    </h3>
+                    {isAppSheetConfigured ? (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase border border-emerald-100">
+                        <CheckCircle2 size={10} />
+                        Configurado
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-lg text-[10px] font-black uppercase border border-amber-100">
+                        <AlertCircle size={10} />
+                        Pendente
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-slate-500">
+                    Importe dados diretamente da sua tabela do AppSheet. Configure as chaves de acesso nas configurações do app.
+                  </p>
+                  
+                  <button
+                    onClick={() => setIsAIVideoStudioOpen(true)}
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-3 hover:scale-[1.02] transition-all active:scale-95 group mb-2"
+                  >
+                    <div className="p-2 bg-white/20 rounded-xl group-hover:rotate-12 transition-transform">
+                      <Sparkles size={20} />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm">AI Video Studio</p>
+                      <p className="text-[10px] opacity-80 font-medium">Crie roteiros e cópias com IA</p>
+                    </div>
+                  </button>
+
+                  {!isAppSheetConfigured && (
+                    <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 mb-2">
+                      <AlertCircle className="text-amber-500 shrink-0" size={18} />
+                      <div className="space-y-1">
+                        <p className="text-xs font-bold text-amber-800">Configuração Incompleta</p>
+                        <p className="text-[10px] text-amber-700 leading-relaxed">
+                          Vá em <strong>Settings (engrenagem)</strong> e adicione as chaves 
+                          VITE_APPSHEET_APP_ID, VITE_APPSHEET_ACCESS_KEY e VITE_APPSHEET_TABLE_NAME.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleSyncAppSheet}
+                      disabled={isSyncingAppSheet || isPushingToAppSheet || !isAppSheetConfigured}
+                      className={cn(
+                        "flex-1 py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all",
+                        (isSyncingAppSheet || isPushingToAppSheet || !isAppSheetConfigured)
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                          : "bg-blue-600 text-white shadow-blue-100 hover:bg-blue-700"
+                      )}
+                      title="Importar do AppSheet"
+                    >
+                      <RefreshCw size={20} className={cn(isSyncingAppSheet && "animate-spin")} />
+                      {isSyncingAppSheet ? 'Importando...' : 'Importar'}
+                    </button>
+
+                    <button
+                      onClick={handlePushToAppSheet}
+                      disabled={isSyncingAppSheet || isPushingToAppSheet || !isAppSheetConfigured}
+                      className={cn(
+                        "flex-1 py-4 rounded-2xl font-bold shadow-lg flex items-center justify-center gap-2 transition-all",
+                        (isSyncingAppSheet || isPushingToAppSheet || !isAppSheetConfigured)
+                          ? "bg-slate-100 text-slate-400 cursor-not-allowed" 
+                          : "bg-emerald-600 text-white shadow-emerald-100 hover:bg-emerald-700"
+                      )}
+                      title="Enviar para o AppSheet"
+                    >
+                      <Upload size={20} className={cn(isPushingToAppSheet && "animate-spin")} />
+                      {isPushingToAppSheet ? 'Enviando...' : 'Exportar'}
+                    </button>
+                    
+                    <button
+                      onClick={handleTestConnection}
+                      disabled={isTestingConnection || !isAppSheetConfigured}
+                      className={cn(
+                        "px-4 py-4 rounded-2xl font-bold border-2 transition-all flex items-center justify-center gap-2",
+                        (isTestingConnection || !isAppSheetConfigured)
+                          ? "border-slate-100 text-slate-300 cursor-not-allowed"
+                          : "border-blue-100 text-blue-600 hover:bg-blue-50"
+                      )}
+                    >
+                      {isTestingConnection ? <RefreshCw size={18} className="animate-spin" /> : <Database size={18} />}
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleFetchColumns}
+                    disabled={isFetchingColumns || !isAppSheetConfigured}
+                    className="w-full py-3 rounded-xl font-bold text-sm text-blue-600 border border-blue-100 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isFetchingColumns ? <RefreshCw size={16} className="animate-spin" /> : <FileSpreadsheet size={16} />}
+                    Configurar Mapeamento de Colunas
+                  </button>
+
+                  {isMappingOpen && appSheetColumns.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-xs text-slate-500 uppercase tracking-wider">Mapeamento de Colunas</h4>
+                        <button onClick={() => setIsMappingOpen(false)} className="text-slate-400 hover:text-slate-600">
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <MappingField 
+                          label="Data" 
+                          value={currentMapping.data} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('data', v)} 
+                        />
+                        <MappingField 
+                          label="Valor Total" 
+                          value={currentMapping.valor} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('valor', v)} 
+                        />
+                        <MappingField 
+                          label="Tipo (Ganhos/Despesa)" 
+                          value={currentMapping.tipo} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('tipo', v)} 
+                        />
+                        <MappingField 
+                          label="Categoria" 
+                          value={currentMapping.categoria} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('categoria', v)} 
+                        />
+                        <MappingField 
+                          label="KM Atual" 
+                          value={currentMapping.km} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('km', v)} 
+                        />
+                        <MappingField 
+                          label="Observações" 
+                          value={currentMapping.obs} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('obs', v)} 
+                        />
+                        <MappingField 
+                          label="Posto/Local" 
+                          value={currentMapping.posto} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('posto', v)} 
+                        />
+                        <MappingField 
+                          label="Combustível" 
+                          value={currentMapping.combustivel} 
+                          options={appSheetColumns} 
+                          onChange={(v) => handleUpdateMapping('combustivel', v)} 
+                        />
+                      </div>
+                      
+                      <p className="text-[10px] text-slate-400 italic">
+                        * O app tentará mapear automaticamente se o campo for deixado em branco.
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 space-y-2">
+                    <h3 className="font-bold text-blue-800 flex items-center gap-2">
+                      <RefreshCw size={20} className="animate-spin-slow" />
+                      Recuperar Dados de Outro App
+                    </h3>
+                    <p className="text-xs text-blue-700 leading-relaxed">
+                      Se você criou uma cópia (Remix) do app, seus dados antigos estão no projeto anterior. 
+                      Para trazê-los para cá:
+                    </p>
+                    <ol className="text-[10px] text-blue-600 space-y-1 list-decimal ml-4 font-medium">
+                      <li>Abra o seu aplicativo antigo.</li>
+                      <li>Vá em <b>Custos &gt; Dados</b> e clique em <b>Exportar Agora</b>.</li>
+                      <li>Volte para este aplicativo (o novo).</li>
+                      <li>Clique em <b>Selecionar Arquivo e Importar</b> abaixo e escolha o arquivo que você baixou.</li>
+                    </ol>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 space-y-2">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Download size={20} className="text-blue-600" />
+                    Exportar para Excel
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Baixe todos os seus lançamentos em um arquivo .xlsx para backup ou análise detalhada.
+                  </p>
+                  <button
+                    onClick={handleExportExcel}
+                    className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
+                  >
+                    Exportar Agora
+                  </button>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 space-y-2">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Upload size={20} className="text-emerald-600" />
+                    Importar de Excel
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Importe lançamentos de um arquivo Excel. O arquivo deve seguir o formato da exportação.
+                  </p>
+                  
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    accept=".xlsx, .xls"
+                    onChange={handleImportExcel}
+                    className="hidden"
+                  />
+                  
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-emerald-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-emerald-100 flex items-center justify-center gap-2 hover:bg-emerald-700 transition-all"
+                  >
+                    <Upload size={20} />
+                    Selecionar Arquivo e Importar
+                  </button>
+                </div>
+
+                <div className="pt-6 border-t border-slate-100 space-y-2">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <Trash2 size={20} className="text-rose-600" />
+                    Limpar Todos os Dados
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Apague permanentemente todos os seus lançamentos e histórico. Esta ação não pode ser desfeita.
+                  </p>
+                  
+                  {isConfirmingClear ? (
+                    <div className="bg-rose-50 p-4 rounded-2xl border border-rose-100 space-y-3">
+                      <p className="text-xs font-bold text-rose-700 text-center">
+                        TEM CERTEZA? Isso apagará todos os seus registros!
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            onUpdateEntries([]);
+                            setIsConfirmingClear(false);
+                            setImportStatus({ success: true, message: 'Todos os dados foram apagados.' });
+                          }}
+                          className="flex-1 bg-rose-600 text-white py-3 rounded-xl font-bold text-sm shadow-lg shadow-rose-200 hover:bg-rose-700 transition-all"
+                        >
+                          Sim, Apagar Tudo
+                        </button>
+                        <button
+                          onClick={() => setIsConfirmingClear(false)}
+                          className="px-4 bg-white text-slate-600 border border-slate-200 py-3 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setIsConfirmingClear(true)}
+                      className="w-full bg-white text-rose-600 border-2 border-rose-100 py-4 rounded-2xl font-bold hover:bg-rose-50 transition-all flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={20} />
+                      Apagar Todos os Registros
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'admin' && isAdmin && (
+        <AdminPanel 
+          appConfig={appConfig} 
+          onUpdateAppConfig={onUpdateAppConfig} 
+        />
+      )}
+
+      <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex gap-3">
+        <AlertCircle className="text-amber-500 shrink-0" size={20} />
+        <p className="text-xs text-amber-700 font-medium leading-relaxed">
+          As alterações feitas aqui são aplicadas imediatamente aos cálculos de lucro e formulários de lançamento.
+        </p>
+      </div>
+    </div>
+  );
+}
+// Note: Sub-components (FixedCostsManager, etc.) omitted for brevity in this part.

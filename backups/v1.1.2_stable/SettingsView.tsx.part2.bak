@@ -1,0 +1,299 @@
+// Part 2 of SettingsView.tsx backup
+      {activeSection === 'general' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 rounded-xl">
+                <Car className="text-blue-600 size-5" />
+              </div>
+              <h3 className="font-bold text-slate-800">Metas de Kilometragem</h3>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-500 ml-1">Meta de KM Mensal</label>
+              <div className="relative">
+                <input 
+                  type="number"
+                  value={targetKm || ''}
+                  onChange={(e) => onUpdateTargetKm(Number(e.target.value))}
+                  placeholder="Ex: 5000"
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">km</div>
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1 italic">
+                * Defina quantos quilômetros você planeja ou precisa rodar no mês.
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-slate-500 ml-1">Quilometragem Atual do Veículo</label>
+              <div className="relative">
+                <input 
+                  type="number"
+                  value={currentKm || ''}
+                  onChange={(e) => onUpdateCurrentKm?.(Number(e.target.value))}
+                  placeholder={lastRecordedKm > 0 ? `Ex: ${lastRecordedKm}` : "Ex: 15000"}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+                />
+                <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">km</div>
+              </div>
+              <p className="text-[10px] text-slate-400 ml-1 italic">
+                * Este valor é atualizado automaticamente ao registrar um abastecimento ou manutenção.
+              </p>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-50 rounded-xl">
+                  <RefreshCw className="text-emerald-600 size-5" />
+                </div>
+                <h3 className="font-bold text-slate-800">Intervalos de Manutenção</h3>
+              </div>
+              
+              <div className="space-y-3">
+                {maintenanceIntervals.map((interval) => (
+                  <div key={interval.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("p-1.5 rounded-lg", getCategoryStyle(interval.item).bgColor, getCategoryStyle(interval.item).color)}>
+                          {getCategoryStyle(interval.item).icon}
+                        </div>
+                        <span className="font-bold text-slate-700">{interval.item}</span>
+                      </div>
+                      <button 
+                        onClick={() => onUpdateMaintenanceIntervals(maintenanceIntervals.filter(m => m.id !== interval.id))}
+                        className="p-1.5 text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        value={interval.intervaloKm}
+                        onChange={(e) => {
+                          const newIntervals = maintenanceIntervals.map(m => 
+                            m.id === interval.id ? { ...m, intervaloKm: Number(e.target.value) } : m
+                          );
+                          onUpdateMaintenanceIntervals(newIntervals);
+                        }}
+                        className="w-full bg-white border border-slate-200 rounded-xl py-2 px-4 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">km</div>
+                    </div>
+                  </div>
+                ))}
+
+                <MaintenanceIntervalAdder 
+                  onAdd={(item, km) => {
+                    const newItem: MaintenanceInterval = {
+                      id: crypto.randomUUID(),
+                      item,
+                      intervaloKm: km
+                    };
+                    onUpdateMaintenanceIntervals([...maintenanceIntervals, newItem]);
+                  }} 
+                />
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-purple-50 rounded-xl">
+                  <Sparkles className="text-purple-600 size-5" />
+                </div>
+                <h3 className="font-bold text-slate-800">Inteligência Artificial (Gemini)</h3>
+              </div>
+              
+              <div className={cn(
+                "p-4 rounded-2xl border flex items-center justify-between",
+                process.env.GEMINI_API_KEY ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
+              )}>
+                <div className="flex items-center gap-3">
+                  {process.env.GEMINI_API_KEY ? (
+                    <CheckCircle2 className="text-emerald-600" size={20} />
+                  ) : (
+                    <AlertCircle className="text-rose-600" size={20} />
+                  )}
+                  <div>
+                    <p className={cn("text-sm font-bold", process.env.GEMINI_API_KEY ? "text-emerald-700" : "text-rose-700")}>
+                      {process.env.GEMINI_API_KEY ? "IA Configurada" : "IA não configurada"}
+                    </p>
+                    <p className="text-[10px] text-slate-500">
+                      {process.env.GEMINI_API_KEY 
+                        ? "Recursos de leitura automática de notas estão ativos." 
+                        : "Adicione a GEMINI_API_KEY nos Secrets para ativar a leitura de notas."}
+                    </p>
+                  </div>
+                </div>
+                {!process.env.GEMINI_API_KEY && (
+                  <div className="text-[10px] font-black text-rose-600 uppercase bg-white px-2 py-1 rounded-lg border border-rose-100">
+                    Ação Necessária
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-blue-50 rounded-xl">
+                  <RefreshCw className="text-blue-600 size-5" />
+                </div>
+                <h3 className="font-bold text-slate-800">Sistema e Cache</h3>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Se as atualizações visuais (como as fontes amarelas) não estiverem aparecendo no seu celular, use o botão abaixo para limpar o cache local.
+              </p>
+              <button
+                onClick={() => {
+                  if (window.confirm('Deseja limpar o cache e recarregar o app?')) {
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(registrations => {
+                        for (let registration of registrations) {
+                          registration.unregister();
+                        }
+                        window.location.reload();
+                      });
+                    } else {
+                      window.location.reload();
+                    }
+                  }
+                }}
+                className="w-full flex items-center justify-center gap-2 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+              >
+                <RefreshCw size={18} />
+                Forçar Atualização do App
+              </button>
+            </div>
+
+            {isAdmin && appConfig && (
+              <div className="pt-6 border-t border-slate-100 space-y-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-purple-50 rounded-xl">
+                    <Settings className="text-purple-600 size-5" />
+                  </div>
+                  <h3 className="font-bold text-slate-800">Administração (Versões)</h3>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Produção</label>
+                    <input 
+                      type="text"
+                      value={appConfig.publishedVersion || ''}
+                      onChange={(e) => onUpdateAppConfig?.({ ...appConfig, publishedVersion: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 px-4 text-sm font-bold focus:outline-none"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-purple-400 uppercase ml-1">Beta (Teste)</label>
+                    <input 
+                      type="text"
+                      value={appConfig.betaVersion || ''}
+                      onChange={(e) => onUpdateAppConfig?.({ ...appConfig, betaVersion: e.target.value })}
+                      className="w-full bg-purple-50 border border-purple-100 rounded-xl py-2 px-4 text-sm font-bold focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (window.confirm('Deseja publicar a versão Beta para todos os usuários?')) {
+                      onUpdateAppConfig?.({ 
+                        ...appConfig, 
+                        publishedVersion: appConfig.betaVersion 
+                      });
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
+                >
+                  <TrendingUp size={18} />
+                  Publicar Beta para Produção
+                </button>
+                
+                <p className="text-[10px] text-slate-400 text-center italic">
+                  As fontes amarelas só aparecem se Versão Beta ≠ Versão Produção.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeSection === 'fixed' && (
+        <FixedCostsManager costs={fixedCosts} onUpdate={onUpdateFixedCosts} />
+      )}
+
+      {activeSection === 'expenses' && (
+        <ExpenseCategoriesManager categories={categories} onUpdate={onUpdateCategories} />
+      )}
+      
+      {activeSection === 'earnings' && (
+        <EarningCategoriesManager categories={earningCategories} onUpdate={onUpdateEarningCategories} />
+      )}
+      
+      {activeSection === 'share' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-6">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-blue-50 rounded-xl">
+                <Share2 className="text-blue-600 size-5" />
+              </div>
+              <h3 className="font-bold text-slate-800">Divulgar LucroNoVolante</h3>
+            </div>
+
+            <p className="text-sm text-slate-500 leading-relaxed">
+              Compartilhe o seu link oficial com outros motoristas e ajude-os a profissionalizar a gestão financeira nas ruas.
+            </p>
+
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Seu Link de Divulgação</label>
+              <div className="flex gap-2">
+                <input 
+                  type="text" 
+                  readOnly 
+                  value="https://lucronovolante.app.br"
+                  className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-600 focus:outline-none"
+                />
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText("https://lucronovolante.app.br");
+                    setImportStatus({ success: true, message: 'Link copiado para a área de transferência!' });
+                  }}
+                  className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all active:scale-95"
+                  title="Copiar Link"
+                >
+                  <Copy size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => window.open('https://wa.me/?text=Olha+esse+app+que+estou+usando+para+controlar+meus+ganhos+na+Uber+e+99:+https://lucronovolante.app.br', '_blank')}
+                className="flex items-center justify-center gap-2 p-4 bg-emerald-50 text-emerald-700 rounded-2xl font-bold text-sm hover:bg-emerald-100 transition-all"
+              >
+                <ExternalLink size={18} />
+                WhatsApp
+              </button>
+              <button 
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'LucroNoVolante',
+                      text: 'Controle seus ganhos e despesas de motorista de app com o LucroNoVolante!',
+                      url: 'https://lucronovolante.app.br'
+                    });
+                  } else {
+                    setImportStatus({ success: false, message: 'Seu navegador não suporta compartilhamento nativo. Copie o link acima.' });
+                  }
+                }}
+                className="flex items-center justify-center gap-2 p-4 bg-blue-50 text-blue-700 rounded-2xl font-bold text-sm hover:bg-blue-100 transition-all"
+              >
+                <Share2 size={18} />
+                Outros
+              </button>
+            </div>
+          </div>
+        </div>
+      )}

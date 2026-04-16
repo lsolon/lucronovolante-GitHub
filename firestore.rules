@@ -1,0 +1,126 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId} (Firebase Auth UID)
+// Fields:
+//   - fixedCosts: array (optional) - List of FixedCost objects
+//   - categories: array (optional) - List of Category objects
+//   - earningCategories: array (optional) - List of Category objects
+//   - currentKm: number (optional) - Last recorded KM
+//   - targetKm: number (optional) - Monthly KM goal
+//   - maintenanceIntervals: array (optional) - List of MaintenanceInterval objects
+//   - appSheetMapping: object (optional) - Mapping config
+//
+// Collection: users/{userId}/entries
+// Document ID: {entryId} (Auto-generated)
+// Fields:
+//   - data: string (required, YYYY/MM/DD)
+//   - createdAt: string (required, ISO)
+//   - tipo: string (required, 'Ganhos' | 'Despesa')
+//   - categoriaId: string (required)
+//   - valor: number (required)
+//   - km: number (optional)
+//   - obs: string (optional)
+//   - ganhos: map (optional) - { platformId: value }
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "leandrosolon@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin'));
+    }
+    
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUserConfig(data) {
+      return data.get('currentKm', 0) is number &&
+             data.get('targetKm', 0) is number &&
+             (!('trialStartDate' in data) || data.trialStartDate is string);
+    }
+
+    function isValidEntry(data) {
+      return data.data is string &&
+             data.tipo in ['Ganhos', 'Despesa'] &&
+             data.valor is number &&
+             data.categoriaId is string &&
+             (!('km' in data) || data.km is number) &&
+             (!('obs' in data) || (data.obs is string && data.obs.size() < 1000));
+    }
+
+    function isValidStats(data) {
+      return data.totalVisits is number &&
+             data.uniqueVisitors is number &&
+             data.lastUpdate is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isOwner(userId) && isValidUserConfig(request.resource.data);
+      
+      match /entries/{entryId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) && isValidEntry(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    match /stats/global {
+      allow read: if true;
+      allow update: if isAuthenticated() && 
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['totalVisits', 'uniqueVisitors', 'lastUpdate']) &&
+                      isValidStats(request.resource.data);
+      allow create: if isAuthenticated() && 
+                      request.resource.data.totalVisits == 1 && 
+                      request.resource.data.uniqueVisitors == 1 &&
+                      isValidStats(request.resource.data);
+    }
+
+    match /config/app {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /backlog/{itemId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

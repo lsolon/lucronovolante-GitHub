@@ -1,0 +1,119 @@
+{
+  "entities": {
+    "UserConfig": {
+      "title": "User Configuration",
+      "description": "Global settings for a specific driver",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"], "description": "User role" },
+        "lastSeen": { "type": "string", "description": "ISO timestamp of last activity" },
+        "visitCount": { "type": "number", "description": "Total number of visits" },
+        "hasContributed": { "type": "boolean", "description": "True if user has added any data" },
+        "fixedCosts": {
+          "type": "array",
+          "description": "List of monthly fixed costs"
+        },
+        "categories": {
+          "type": "array",
+          "description": "Expense categories"
+        },
+        "earningCategories": {
+          "type": "array",
+          "description": "Earning platforms/categories"
+        },
+        "currentKm": {
+          "type": "number",
+          "description": "Last recorded odometer reading"
+        },
+        "targetKm": {
+          "type": "number",
+          "description": "Monthly mileage goal"
+        },
+        "maintenanceIntervals": {
+          "type": "array",
+          "description": "Maintenance items and their KM intervals"
+        },
+        "trialStartDate": {
+          "type": "string",
+          "description": "ISO timestamp of first login"
+        },
+        "appSheetMapping": {
+          "type": "object",
+          "description": "Mapping for AppSheet imports"
+        }
+      }
+    },
+    "AppConfig": {
+      "title": "Application Configuration",
+      "description": "Global settings for versioning and staging",
+      "type": "object",
+      "properties": {
+        "publishedVersion": { "type": "string", "description": "Current stable version for all users" },
+        "betaVersion": { "type": "string", "description": "Beta version for admins/testers" },
+        "maintenanceMode": { "type": "boolean" },
+        "announcement": { "type": "string" }
+      }
+    },
+    "Entry": {
+      "title": "Financial Entry",
+      "description": "A single earning or expense record",
+      "type": "object",
+      "properties": {
+        "data": { "type": "string", "format": "date", "description": "YYYY/MM/DD" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "tipo": { "type": "string", "enum": ["Ganhos", "Despesa"] },
+        "categoriaId": { "type": "string" },
+        "valor": { "type": "number" },
+        "km": { "type": "number" },
+        "obs": { "type": "string" },
+        "ganhos": { "type": "object", "description": "Breakdown of earnings by platform" }
+      },
+      "required": ["data", "tipo", "valor", "categoriaId"]
+    },
+    "GlobalStats": {
+      "title": "Global Statistics",
+      "description": "Application-wide metrics",
+      "type": "object",
+      "properties": {
+        "totalVisits": { "type": "number" },
+        "uniqueVisitors": { "type": "number" },
+        "lastUpdate": { "type": "string" }
+      }
+    },
+    "BacklogItem": {
+      "title": "Backlog Item",
+      "description": "Idea or suggestion for future application updates",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] }
+      },
+      "required": ["text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/config/app": {
+      "schema": "AppConfig",
+      "description": "Global application configuration"
+    },
+    "/backlog/{itemId}": {
+      "schema": "BacklogItem",
+      "description": "Ideas and suggestions for the app"
+    },
+    "/stats/global": {
+      "schema": "GlobalStats",
+      "description": "Global application statistics"
+    },
+    "/users/{userId}": {
+      "schema": "UserConfig",
+      "description": "User-specific settings and configuration"
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "Entry",
+      "description": "Financial records for the user"
+    }
+  }
+}

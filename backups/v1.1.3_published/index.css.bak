@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+@import url('https://unpkg.com/leaflet@1.9.4/dist/leaflet.css');
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --animate-spin-slow: spin 3s linear infinite;
+}
+
+@keyframes scan-line {
+  0% { top: 0%; }
+  100% { top: 100%; }
+}
+
+.animate-scan-line {
+  animation: scan-line 2s linear infinite;
+}
+
+/* html5-qrcode UI overrides */
+#qr-reader video {
+  object-fit: cover !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+#qr-reader__scan_region {
+  border: none !important;
+}
+
+#qr-reader__dashboard {
+  display: none !important;
+}
+
+/* Global override: Change all white and near-white text to yellow */
+.text-white,
+.text-slate-50,
+.text-slate-100,
+.text-blue-50,
+.text-blue-100,
+.text-gray-50 {
+  color: #facc15 !important; /* text-yellow-400 */
+}
+
+/* Ensure icons that were white also become yellow */
+.text-white svg,
+.text-slate-50 svg,
+.text-blue-50 svg {
+  color: #facc15 !important;
+}
+
+/* Fix for mobile input visibility and contrast */
+input, select, textarea, option {
+  color: #0f172a !important; /* text-slate-900 */
+  background-color: inherit;
+}
+
+/* Ensure placeholders are visible but distinct */
+input::placeholder, textarea::placeholder {
+  color: #64748b !important; /* text-slate-500 */
+  opacity: 1;
+}
+
+/* Reset for elements that SHOULD be yellow (previously white/light) on dark backgrounds */
+.text-white input, 
+.text-white select, 
+.text-white textarea,
+[class*="bg-slate-900"] input,
+[class*="bg-slate-900"] select,
+[class*="bg-slate-900"] textarea,
+.dark-context input,
+.dark-context select,
+.dark-context textarea {
+  color: #facc15 !important;
+}
+
+/* Specific fix for the main app container which has text-white */
+#root input,
+#root select,
+#root textarea {
+  color: #0f172a !important;
+}
+
+/* Exception for the scanner modal which is dark - use yellow for text */
+.fixed.inset-0.bg-black input,
+.fixed.inset-0.bg-black select,
+.fixed.inset-0.bg-black textarea,
+.fixed.inset-0.bg-slate-900 input,
+.fixed.inset-0.bg-slate-900 select,
+.fixed.inset-0.bg-slate-900 textarea {
+  color: #facc15 !important;
+}
+
+/* Fix for native select appearance on mobile */
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
