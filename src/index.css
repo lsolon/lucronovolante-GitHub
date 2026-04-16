@@ -38,25 +38,25 @@
 .text-blue-50,
 .text-blue-100,
 .text-gray-50 {
-  color: #131011 !important;
+  color: #fc095a !important;
 }
 
 /* Ensure icons that were white match the new theme */
 .text-white svg,
 .text-slate-50 svg,
 .text-blue-50 svg {
-  color: #131011 !important;
+  color: #f5105c !important;
 }
 
 /* Fix for mobile input visibility and contrast */
 input, select, textarea, option {
-  color: #131011 !important;
+  color: #ee0c57 !important;
   background-color: #9dacb4 !important;
 }
 
 /* Ensure placeholders are visible but distinct */
 input::placeholder, textarea::placeholder {
-  color: #131011 !important;
+  color: #f0105b !important;
   opacity: 0.6;
 }
 
@@ -70,7 +70,7 @@ input::placeholder, textarea::placeholder {
 .dark-context input,
 .dark-context select,
 .dark-context textarea {
-  color: #131011 !important;
+  color: #fd0e5e !important;
   background-color: #9dacb4 !important;
 }
 
@@ -78,7 +78,7 @@ input::placeholder, textarea::placeholder {
 #root input,
 #root select,
 #root textarea {
-  color: #131011 !important;
+  color: #f1125d !important;
   background-color: #ffffff !important;
 }
 
@@ -89,7 +89,7 @@ input::placeholder, textarea::placeholder {
 .fixed.inset-0.bg-slate-900 input,
 .fixed.inset-0.bg-slate-900 select,
 .fixed.inset-0.bg-slate-900 textarea {
-  color: #131011 !important;
+  color: #fc1361 !important;
   background-color: #9dacb4 !important;
 }
 
