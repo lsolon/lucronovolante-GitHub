@@ -78,11 +78,26 @@ import TutorialModal from './components/TutorialModal';
 import PWAPrompt from './components/PWAPrompt';
 import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
-
+ 
 const APP_VERSION = '1.1.3';
-
+ 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration.");
+        }
+        console.error("Firestore connectivity test:", error);
+      }
+    }
+    testConnection();
+  }, []);
+  
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'map' | 'reports' | 'settings' | 'maintenance'>('dashboard');
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
