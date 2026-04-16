@@ -31,21 +31,21 @@
   display: none !important;
 }
 
-/* Global override: Change all white and near-white text to white */
+/* Global override: Change all white and near-white text to yellow */
 .text-white,
 .text-slate-50,
 .text-slate-100,
 .text-blue-50,
 .text-blue-100,
 .text-gray-50 {
-  color: #ffffff !important;
+  color: #eeede9 !important; /* text-yellow-400 */
 }
 
-/* Ensure icons that were white also become white */
+/* Ensure icons that were white also become yellow */
 .text-white svg,
 .text-slate-50 svg,
 .text-blue-50 svg {
-  color: #ffffff !important;
+  color: #3b3b37 !important;
 }
 
 /* Fix for mobile input visibility and contrast */
@@ -60,7 +60,7 @@ input::placeholder, textarea::placeholder {
   opacity: 1;
 }
 
-/* Reset for elements that SHOULD be white (previously yellow/light) on dark backgrounds */
+/* Reset for elements that SHOULD be yellow (previously white/light) on dark backgrounds */
 .text-white input, 
 .text-white select, 
 .text-white textarea,
@@ -70,7 +70,7 @@ input::placeholder, textarea::placeholder {
 .dark-context input,
 .dark-context select,
 .dark-context textarea {
-  color: #ffffff !important;
+  color: #facc15 !important;
   background-color: transparent !important;
 }
 
@@ -82,14 +82,14 @@ input::placeholder, textarea::placeholder {
   background-color: #ffffff !important;
 }
 
-/* Exception for the scanner modal which is dark - use white for text */
+/* Exception for the scanner modal which is dark - use yellow for text */
 .fixed.inset-0.bg-black input,
 .fixed.inset-0.bg-black select,
 .fixed.inset-0.bg-black textarea,
 .fixed.inset-0.bg-slate-900 input,
 .fixed.inset-0.bg-slate-900 select,
 .fixed.inset-0.bg-slate-900 textarea {
-  color: #ffffff !important;
+  color: #facc15 !important;
 }
 
 /* Fix for native select appearance on mobile */
