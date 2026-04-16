@@ -356,7 +356,7 @@ export default function Dashboard({
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/5 rounded-xl">
+            <div className="p-2.5 bg-blue-500/20 rounded-2xl">
               <Fuel className="text-blue-300 size-5" />
             </div>
             <h3 className="font-bold text-white">Manutenção e Revisão</h3>
@@ -401,7 +401,7 @@ export default function Dashboard({
         <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/5 rounded-xl">
+              <div className="p-2.5 bg-blue-500/20 rounded-2xl">
                 <Car className="text-blue-300 size-5" />
               </div>
               <h3 className="font-bold text-white">Meta de Kilometragem</h3>
