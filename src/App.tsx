@@ -60,7 +60,9 @@ import {
 } from 'firebase/firestore';
 
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
-import { trackVisit } from './services/statsService';
+import ReactGA from 'react-ga4';
+import { trackVisit, getGlobalStats } from './services/statsService';
+import { GlobalStats } from './types';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import LandingPage from './components/LandingPage';
@@ -88,6 +90,7 @@ export default function App() {
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
   const [dismissedTutorialSession, setDismissedTutorialSession] = useState(false);
   const [isAIVideoStudioOpen, setIsAIVideoStudioOpen] = useState(false);
+  const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [state, setState] = useState<AppState>({
     entries: [],
     fixedCosts: DEFAULT_FIXED_COSTS,
@@ -127,6 +130,13 @@ export default function App() {
 
   // Auth Listener
   useEffect(() => {
+    // Initialize Google Analytics
+    const gaId = import.meta.env.VITE_GA_ID;
+    if (gaId) {
+      ReactGA.initialize(gaId);
+      ReactGA.send({ hitType: "pageview", page: window.location.pathname });
+    }
+
     // Check for redirect result first
     getRedirectResult(auth).catch(error => {
       console.error("Erro no resultado do redirect:", error);
@@ -276,6 +286,16 @@ export default function App() {
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'config/app');
+    });
+
+    // Fetch Global Stats
+    getGlobalStats().then(stats => {
+      if (stats) setGlobalStats(stats);
+    });
+
+    // Fetch Global Stats
+    getGlobalStats().then(stats => {
+      if (stats) setGlobalStats(stats);
     });
 
     return () => {
@@ -831,6 +851,7 @@ export default function App() {
                 onViewMaintenance={() => setActiveTab('maintenance')}
                 onOpenAIStudio={() => setIsAIVideoStudioOpen(true)}
                 isAdmin={isAdmin}
+                uniqueVisitors={globalStats?.uniqueVisitors}
               />
             </motion.div>
           )}

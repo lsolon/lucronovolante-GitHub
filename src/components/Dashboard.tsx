@@ -41,6 +41,7 @@ interface DashboardProps {
   onViewMaintenance: () => void;
   onOpenAIStudio: () => void;
   isAdmin?: boolean;
+  uniqueVisitors?: number;
 }
 
 export default function Dashboard({ 
@@ -54,7 +55,8 @@ export default function Dashboard({
   categories,
   onViewMaintenance,
   onOpenAIStudio,
-  isAdmin
+  isAdmin,
+  uniqueVisitors
 }: DashboardProps) {
   const currentMonthStr = format(new Date(), 'yyyy-MM');
   const activeFixedCosts = useMemo(() => {
@@ -189,6 +191,13 @@ export default function Dashboard({
           Criar Propaganda
         </button>
       </div>
+
+      {uniqueVisitors !== undefined && (
+        <div className="bg-white/5 p-4 rounded-xl text-center border border-white/10">
+          <p className="text-[10px] text-blue-200 uppercase font-bold">Visitantes Únicos</p>
+          <p className="text-2xl font-black text-white">{uniqueVisitors}</p>
+        </div>
+      )}
 
       {/* Daily Goal Card (Prominent) */}
       <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/10 overflow-hidden relative">
