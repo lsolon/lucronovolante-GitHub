@@ -78,7 +78,7 @@ input::placeholder, textarea::placeholder {
 #root input,
 #root select,
 #root textarea {
-  color: #0f172a !important;
+  color: #181717 !important;
   background-color: #ffffff !important;
 }
 
