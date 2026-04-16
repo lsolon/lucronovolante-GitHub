@@ -47,7 +47,7 @@
 .text-blue-50 svg {
   color: #92c3cf !important;
 }
-
+/* Fix for mobile input visibility and contrastteste */
 /* Fix for mobile input visibility and contrast */
 input, select, textarea, option {
   color: #181717 !important; /* text-slate-900 */
