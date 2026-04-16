@@ -1,4 +1,4 @@
-name: Deploy to Cloud Run
+name: Deploy to Cloud Run from Source
 
 on:
   push:
@@ -21,4 +21,4 @@ jobs:
         with:
           service: ${{ secrets.SERVICE_NAME }}
           region: ${{ secrets.REGION }}
-          image: ${{ secrets.IMAGE_URL }}
+          source: .
