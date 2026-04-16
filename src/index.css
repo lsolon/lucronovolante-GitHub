@@ -31,36 +31,36 @@
   display: none !important;
 }
 
-/* Global override: Change all white and near-white text */
+/* Global override: Change all white and near-white text to white */
 .text-white,
 .text-slate-50,
 .text-slate-100,
 .text-blue-50,
 .text-blue-100,
 .text-gray-50 {
-  color: #fc095a !important;
+  color: #ffffff !important;
 }
 
-/* Ensure icons that were white match the new theme */
+/* Ensure icons that were white also become white */
 .text-white svg,
 .text-slate-50 svg,
 .text-blue-50 svg {
-  color: #f5105c !important;
+  color: #ffffff !important;
 }
 
 /* Fix for mobile input visibility and contrast */
 input, select, textarea, option {
-  color: #ee0c57 !important;
-  background-color: #9dacb4 !important;
+  color: #0f172a !important; /* text-slate-900 */
+  background-color: #ffffff !important; /* bg-white */
 }
 
 /* Ensure placeholders are visible but distinct */
 input::placeholder, textarea::placeholder {
-  color: #d10d4f !important;
-  opacity: 0.6;
+  color: #64748b !important; /* text-slate-500 */
+  opacity: 1;
 }
 
-/* Reset for elements that were meant for dark backgrounds */
+/* Reset for elements that SHOULD be white (previously yellow/light) on dark backgrounds */
 .text-white input, 
 .text-white select, 
 .text-white textarea,
@@ -70,27 +70,26 @@ input::placeholder, textarea::placeholder {
 .dark-context input,
 .dark-context select,
 .dark-context textarea {
-  color: #fd0e5e !important;
-  background-color: #9dacb4 !important;
+  color: #ffffff !important;
+  background-color: transparent !important;
 }
 
 /* Specific fix for the main app container */
 #root input,
 #root select,
 #root textarea {
-  color: #f1125d !important;
+  color: #0f172a !important;
   background-color: #ffffff !important;
 }
 
-/* Exception for the scanner modal which is dark - use theme text */
+/* Exception for the scanner modal which is dark - use white for text */
 .fixed.inset-0.bg-black input,
 .fixed.inset-0.bg-black select,
 .fixed.inset-0.bg-black textarea,
 .fixed.inset-0.bg-slate-900 input,
 .fixed.inset-0.bg-slate-900 select,
 .fixed.inset-0.bg-slate-900 textarea {
-  color: #fc1361 !important;
-  background-color: #9dacb4 !important;
+  color: #ffffff !important;
 }
 
 /* Fix for native select appearance on mobile */
