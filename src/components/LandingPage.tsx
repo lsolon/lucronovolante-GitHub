@@ -59,9 +59,12 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
       )}>
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <div className="bg-blue-600 p-1.5 rounded-lg shadow-lg shadow-blue-200">
-              <Car className="text-white size-6" />
-            </div>
+            <img 
+              src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
+              alt="Logo" 
+              className="size-10 rounded-lg shadow-lg"
+              referrerPolicy="no-referrer"
+            />
             <span className="font-black text-xl tracking-tighter text-slate-800">LucroNoVolante</span>
           </div>
           <button 
@@ -226,9 +229,12 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
       <footer className="py-12 px-6 border-t border-slate-100">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="bg-slate-900 p-1 rounded-lg">
-              <Car className="text-white size-5" />
-            </div>
+            <img 
+              src="https://i.postimg.cc/XY3C4qHn/Designer.jpg" 
+              alt="Logo" 
+              className="size-8 rounded-lg"
+              referrerPolicy="no-referrer"
+            />
             <span className="font-black text-lg tracking-tighter text-slate-800">LucroNoVolante</span>
           </div>
           <p className="text-slate-400 text-sm font-medium">
