@@ -386,7 +386,7 @@ export default function Dashboard({
         </div>
 
         <p className="text-[10px] text-blue-200 mt-4 font-medium flex items-center gap-1">
-          <Info size={12} /> Clique para ver o detalhamento completo de todos os itens.
+          <Info size={12} /> Clique para ver o detalhamento completo de todos OS itens.
         </p>
       </div>
 
