@@ -2095,14 +2095,10 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Acessos</p>
             <p className="text-2xl font-black text-blue-600">{stats?.totalVisits || 0}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Visitantes Únicos</p>
-            <p className="text-2xl font-black text-emerald-600">{stats?.uniqueVisitors || 0}</p>
           </div>
         </div>
 
