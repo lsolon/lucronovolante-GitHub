@@ -54,32 +54,41 @@ Para "Propagandas Compartilháveis", use emojis e uma estrutura que funcione bem
 
 const SUGGESTIONS = [
   {
-    title: "Cena de Dia a Dia",
-    prompt: "Gere uma imagem de alta qualidade de um motorista de aplicativo sorrindo, dirigindo um carro moderno, com uma iluminação aconchegante. Inclua a logomarca 'LucroNoVolante' de forma elegante e profissional na lateral da imagem, simulando uma marca d'água.",
-    icon: <Car className="size-4" />
+    title: "Gerar Vídeo Curto",
+    prompt: "Gere um vídeo cinematográfico de 5 segundos de um carro de aplicativo dirigindo por uma cidade moderna ao pôr do sol, com luzes neon.",
+    icon: <Video className="size-4" />
   },
   {
-    title: "Celebração de Metas",
-    prompt: "Gere uma imagem de um motorista de aplicativo celebrando uma meta batida no celular, com um gráfico de crescimento positivo ao fundo. A imagem deve ser profissional e moderna. Inclua a logomarca 'LucroNoVolante' integrada criativamente no cenário.",
-    icon: <TrendingUp className="size-4" />
+    title: "Criar Post com Imagem",
+    prompt: "Gere uma imagem de publicidade de alta qualidade para Instagram: um motorista de aplicativo focado e feliz, dentro de um carro moderno. Foco total em uma composição visual limpa, sem qualquer texto ou logotipo na imagem.",
+    icon: <Sparkles className="size-4" />
   },
   {
-    title: "Organização Financeira",
-    prompt: "Gere uma imagem de um motorista de aplicativo olhando para um relatório financeiro organizado no celular, transmitindo tranquilidade e profissionalismo. Inclua a logomarca 'LucroNoVolante' de forma visível e elegante.",
-    icon: <Database className="size-4" />
+    title: "Propaganda WhatsApp",
+    prompt: "Gere uma imagem atraente para status de WhatsApp com um motorista de app sorrindo e o celular na mão com o app aberto. Foco total em uma composição visual limpa, sem qualquer texto ou logotipo na imagem.",
+    icon: <Share2 className="size-4" />
+  },
+  {
+    title: "Roteiro para Reels",
+    prompt: "Crie um roteiro de 30 segundos para um Reels do Instagram focado na dor de não saber o lucro real no final do dia.",
+    icon: <Clapperboard className="size-4" />
   },
   {
     title: "Convite de Indicação",
-    prompt: "Gere uma imagem limpa e profissional focada em marketing para motoristas de aplicativo, com um carro e um smartphone em destaque mostrando o app. Espaço reservado para legenda. Inclua a logomarca 'LucroNoVolante' em destaque.",
+    prompt: "Crie uma mensagem de convite para eu enviar para um colega motorista, explicando por que ele deveria usar o LucroNoVolante.",
     icon: <Smartphone className="size-4" />
   }
 ];
+
+import CampaignsHistory from './CampaignsHistory';
+// ... existing imports
 
 export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -87,6 +96,13 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  if (showHistory) {
+    return <CampaignsHistory onClose={() => setShowHistory(false)} />;
+  }
+
+  // The actual render logic is fully contained within the main return block at line 321
+
 
   const handleSend = async (text: string = input) => {
     if (!text.trim() || isLoading) return;
@@ -129,7 +145,7 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
         // Image Generation
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-image",
-          contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUsuário pediu: ${text}\n\nGere uma imagem de divulgação profissional para o app LucroNoVolante baseada nesse pedido. Inclua espaço para uma legenda e o logotipo do app LucroNoVolante.` }] }],
+          contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUsuário pediu: ${text}\n\nSiga estas DUAS instruções:\n1. GERE UMA IMAGEM de divulgação profissional para o LucroNoVolante baseada nesse pedido. Foco total em uma composição visual limpa, sem texto ou logotipo na imagem.\n2. GERE UM TEXTO ATRATIVO PARA PUBLICAR ABAIXO DA IMAGEM, em uma seção clara chamada "LEGENDA PARA PUBLICAR:".` }] }],
           config: {
             imageConfig: {
               aspectRatio: "1:1",
@@ -297,6 +313,12 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowHistory(true)}
+              className="p-2 text-slate-400 hover:bg-slate-100 rounded-xl transition-all"
+            >
+              <FileText size={20} />
+            </button>
             <button 
               onClick={handleSaveCampaign}
               className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-2 font-bold text-sm"
