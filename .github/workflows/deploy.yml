@@ -22,4 +22,3 @@ jobs:
           service: ${{ secrets.SERVICE_NAME }}
           region: ${{ secrets.REGION }}
           source: .
-          flags: "--no-cache"
