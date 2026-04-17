@@ -78,6 +78,13 @@ export interface BacklogItem {
   status: 'pending' | 'completed';
 }
 
+export interface AICampaign {
+  id: string;
+  title: string;
+  messages: { role: 'user' | 'model'; text: string; image?: string; video?: string; }[];
+  createdAt: string;
+}
+
 export interface AppState {
   entries: Entry[];
   fixedCosts: FixedCost[];
@@ -97,4 +104,5 @@ export interface AppState {
   hasContributed?: boolean;
   lastSeen?: string;
   appConfig?: AppConfig;
+  aiCampaigns?: AICampaign[];
 }

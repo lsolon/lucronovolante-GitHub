@@ -17,10 +17,15 @@ import {
   Smartphone,
   Facebook,
   Instagram,
-  Download
+  Download,
+  Save
 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { cn } from '../lib/utils';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, setDoc, writeBatch, collection, arrayUnion, updateDoc } from 'firebase/firestore';
+import { AICampaign } from '../types';
 
 interface Message {
   role: 'user' | 'model';
@@ -90,6 +95,11 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
 
   const handleSend = async (text: string = input) => {
     if (!text.trim() || isLoading) return;
+
+    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
+      setMessages(prev => [...prev, { role: 'model', text: 'Desculpe, este recurso está disponível apenas para o administrador autorizado.' }]);
+      return;
+    }
 
     const userMessage: Message = { role: 'user', text };
     setMessages(prev => [...prev, userMessage]);
@@ -236,6 +246,29 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const handleSaveCampaign = async () => {
+    if (!auth.currentUser || messages.length === 0) return;
+    
+    const title = messages[0].text.substring(0, 30) + '...';
+    const newCampaign: AICampaign = {
+      id: crypto.randomUUID?.() || Date.now().toString(),
+      title,
+      messages,
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userDocRef, { 
+        aiCampaigns: arrayUnion(newCampaign)
+      });
+      alert('Campanha salva com sucesso!');
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao salvar campanha.');
+    }
+  };
+
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedIndex(index);
@@ -313,12 +346,21 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Seu Diretor Criativo</p>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
-          >
-            <X size={24} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleSaveCampaign}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all flex items-center gap-2 font-bold text-sm"
+            >
+              <Save size={18} />
+              Salvar
+            </button>
+            <button 
+              onClick={onClose}
+              className="p-2 text-slate-300 hover:text-slate-500 hover:bg-slate-50 rounded-xl transition-all"
+            >
+              <X size={24} />
+            </button>
+          </div>
         </div>
 
         {/* Chat Area */}

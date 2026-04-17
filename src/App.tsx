@@ -236,7 +236,8 @@ export default function App() {
           trialStartDate: data.trialStartDate,
           appSheetMapping: data.appSheetMapping,
           hasSeenTutorial: data.hasSeenTutorial ?? false,
-          tutorialOptOut: data.tutorialOptOut ?? false
+          tutorialOptOut: data.tutorialOptOut ?? false,
+          aiCampaigns: data.aiCampaigns || []
         }));
       } else {
         // Initialize user doc if it doesn't exist

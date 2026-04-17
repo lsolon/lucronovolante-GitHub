@@ -18,6 +18,7 @@ import {
   Calendar
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import { auth } from '../firebase';
 import { format } from 'date-fns';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
@@ -156,6 +157,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const handleExtractFromImage = async () => {
     if (!photoUrl) return;
+    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
+      alert('Esta funcionalidade está disponível apenas para o administrador.');
+      return;
+    }
     setIsExtracting(true);
     try {
       const data = await extractInvoiceDataFromImage(photoUrl);
@@ -179,6 +184,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const handleExtractFromUrl = async (url: string) => {
     if (!url) return;
+    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
+      alert('Esta funcionalidade está disponível apenas para o administrador.');
+      return;
+    }
     setIsExtracting(true);
     try {
       // Use local API proxy to avoid CORS and Firebase Function dependency
