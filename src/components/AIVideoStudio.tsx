@@ -54,28 +54,23 @@ Para "Propagandas Compartilháveis", use emojis e uma estrutura que funcione bem
 
 const SUGGESTIONS = [
   {
-    title: "Gerar Vídeo Curto",
-    prompt: "Gere um vídeo cinematográfico de 5 segundos de um carro de aplicativo dirigindo por uma cidade moderna ao pôr do sol, com luzes neon.",
-    icon: <Video className="size-4" />
+    title: "Cena de Dia a Dia",
+    prompt: "Gere uma imagem de alta qualidade de um motorista de aplicativo sorrindo, dirigindo um carro moderno, com uma iluminação aconchegante. Inclua a logomarca 'LucroNoVolante' de forma elegante e profissional na lateral da imagem, simulando uma marca d'água.",
+    icon: <Car className="size-4" />
   },
   {
-    title: "Criar Post com Imagem",
-    prompt: "Gere uma imagem de um motorista feliz usando o celular no carro e uma legenda para Instagram sobre como o app LucroNoVolante mudou a vida dele.",
-    icon: <Sparkles className="size-4" />
+    title: "Celebração de Metas",
+    prompt: "Gere uma imagem de um motorista de aplicativo celebrando uma meta batida no celular, com um gráfico de crescimento positivo ao fundo. A imagem deve ser profissional e moderna. Inclua a logomarca 'LucroNoVolante' integrada criativamente no cenário.",
+    icon: <TrendingUp className="size-4" />
   },
   {
-    title: "Propaganda WhatsApp",
-    prompt: "Gere uma propaganda curta e impactante para eu compartilhar em grupos de motoristas no WhatsApp, destacando como o app ajuda a ver o lucro real.",
-    icon: <Share2 className="size-4" />
-  },
-  {
-    title: "Roteiro para Reels",
-    prompt: "Crie um roteiro de 30 segundos para um Reels do Instagram focado na dor de não saber o lucro real no final do dia.",
-    icon: <Clapperboard className="size-4" />
+    title: "Organização Financeira",
+    prompt: "Gere uma imagem de um motorista de aplicativo olhando para um relatório financeiro organizado no celular, transmitindo tranquilidade e profissionalismo. Inclua a logomarca 'LucroNoVolante' de forma visível e elegante.",
+    icon: <Database className="size-4" />
   },
   {
     title: "Convite de Indicação",
-    prompt: "Crie uma mensagem de convite para eu enviar para um colega motorista, explicando por que ele deveria usar o LucroNoVolante.",
+    prompt: "Gere uma imagem limpa e profissional focada em marketing para motoristas de aplicativo, com um carro e um smartphone em destaque mostrando o app. Espaço reservado para legenda. Inclua a logomarca 'LucroNoVolante' em destaque.",
     icon: <Smartphone className="size-4" />
   }
 ];
@@ -123,63 +118,18 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
                             text.toLowerCase().includes('animação');
 
       if (isVideoRequest) {
-        // Check for API Key selection (Mandatory for Veo)
-        const aistudio = (window as any).aistudio;
-        if (aistudio && typeof aistudio.hasSelectedApiKey === 'function') {
-          const hasKey = await aistudio.hasSelectedApiKey();
-          if (!hasKey) {
-            setMessages(prev => [...prev, { 
-              role: 'model', 
-              text: "Para gerar vídeos cinematográficos, você precisa selecionar uma chave de API paga do Google Cloud. Isso é um requisito do Google para o modelo Veo.\n\nClique no botão abaixo para selecionar sua chave (você precisará ter o faturamento ativado no seu projeto do Google Cloud)." 
-            }]);
-            
-            // We can't easily add a button inside the message text without more complex rendering,
-            // so we'll just open the dialog automatically or provide a clear instruction.
-            if (typeof aistudio.openSelectKey === 'function') {
-              await aistudio.openSelectKey();
-              // After opening, we assume success as per guidelines
-            }
-            setIsLoading(false);
-            return;
-          }
-        }
-
-        // Video Generation (Veo)
         setMessages(prev => [...prev, { 
           role: 'model', 
-          text: "Iniciando a geração do seu vídeo cinematográfico... Isso pode levar de 2 a 5 minutos. Por favor, aguarde enquanto eu trabalho na produção!" 
+          text: "Aqui está um prompt detalhado e profissional para você usar em ferramentas externas de geração de vídeo:\n\n" + 
+          `"${text} [Cena cinematográfica de alta qualidade, 4k, realista] - Instrução de edição: Adicione uma legenda dinâmica profissional e o logotipo do meu aplicativo 'LucroNoVolante' inseridos de forma elegante no canto inferior da tela."` 
         }]);
-
-        let operation = await ai.models.generateVideos({
-          model: 'veo-3.1-lite-generate-preview',
-          prompt: text,
-          config: {
-            numberOfVideos: 1,
-            resolution: '720p',
-            aspectRatio: '9:16'
-          }
-        });
-
-        while (!operation.done) {
-          await new Promise(resolve => setTimeout(resolve, 15000));
-          operation = await ai.operations.getVideosOperation({ operation });
-        }
-
-        const videoUrl = operation.response?.generatedVideos?.[0]?.video?.uri;
-        if (videoUrl) {
-          setMessages(prev => [...prev, { 
-            role: 'model', 
-            text: "Seu vídeo está pronto! Ficou incrível. O que achou?", 
-            video: videoUrl 
-          }]);
-        } else {
-          throw new Error("Não foi possível obter o link do vídeo.");
-        }
+        setIsLoading(false);
+        return;
       } else if (isImageRequest) {
         // Image Generation
         const response = await ai.models.generateContent({
           model: "gemini-2.5-flash-image",
-          contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUsuário pediu: ${text}\n\nGere uma imagem de divulgação profissional para o app LucroNoVolante baseada nesse pedido.` }] }],
+          contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUsuário pediu: ${text}\n\nGere uma imagem de divulgação profissional para o app LucroNoVolante baseada nesse pedido. Inclua espaço para uma legenda e o logotipo do app LucroNoVolante.` }] }],
           config: {
             imageConfig: {
               aspectRatio: "1:1",
