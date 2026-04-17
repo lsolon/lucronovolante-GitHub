@@ -812,7 +812,7 @@ export default function SettingsView({
                 className="flex items-center justify-center gap-2 p-4 bg-blue-50 text-blue-700 rounded-2xl font-bold text-sm hover:bg-blue-100 transition-all"
               >
                 <Share2 size={18} />
-                Outros
+                Outros ✨
               </button>
             </div>
 
