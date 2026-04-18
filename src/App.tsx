@@ -79,7 +79,7 @@ import PWAPrompt from './components/PWAPrompt';
 import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
  
-const APP_VERSION = '1.1.3';
+const APP_VERSION = '1.1.4';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);

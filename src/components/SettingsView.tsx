@@ -1903,6 +1903,8 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
+  const [confirmBeta, setConfirmBeta] = useState(false);
+  const [confirmUpdate, setConfirmUpdate] = useState(false);
 
   const [localConfig, setLocalConfig] = useState<AppConfig>({
     publishedVersion: appConfig?.publishedVersion || '1.0.0',
@@ -1953,58 +1955,75 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
         </div>
 
         <div className="space-y-3 pb-4 border-b border-slate-100">
-          <button
-            onClick={() => {
-              if (window.confirm('Deseja publicar a versão Beta para todos os usuários?')) {
-                onUpdateAppConfig?.({ 
-                  ...localConfig, 
-                  publishedVersion: localConfig.betaVersion 
-                });
-              }
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
-          >
-            <TrendingUp size={18} />
-            Publicar Beta para Produção
-          </button>
+          {!confirmBeta ? (
+            <button
+              onClick={() => setConfirmBeta(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-all shadow-lg shadow-purple-200"
+            >
+              <TrendingUp size={18} />
+              Publicar Beta para Produção
+            </button>
+          ) : (
+             <div className="bg-purple-50 p-4 rounded-xl space-y-3">
+               <p className="text-sm font-bold text-center text-purple-900">Tem certeza que deseja publicar o Beta para todos?</p>
+               <div className="flex gap-2">
+                  <button onClick={() => setConfirmBeta(false)} className="flex-1 py-3 bg-white text-slate-600 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-colors">Cancelar</button>
+                  <button onClick={() => {
+                    onUpdateAppConfig?.({ 
+                      ...localConfig, 
+                      publishedVersion: localConfig.betaVersion 
+                    });
+                    setConfirmBeta(false);
+                  }} className="flex-1 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-sm">Confirmar</button>
+               </div>
+             </div>
+          )}
 
-          <button
-            onClick={() => {
-              if (window.confirm('Deseja aplicar uma nova atualização de versão? Isso forçará o recarregamento para todos os usuários.')) {
-                const current = localConfig.publishedVersion || '1.1.3';
-                const parts = current.split('.');
-                let nextVersion = '';
-                if (parts.length === 3) {
-                  parts[2] = (parseInt(parts[2]) + 1).toString();
-                  nextVersion = parts.join('.');
-                } else {
-                  nextVersion = current + '.1';
-                }
-                
-                onUpdateAppConfig?.({ 
-                  ...localConfig, 
-                  publishedVersion: nextVersion,
-                  betaVersion: nextVersion
-                });
-
-                // Forçar recarregamento local também
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.getRegistrations().then(registrations => {
-                    for (let registration of registrations) {
-                      registration.unregister();
+          {!confirmUpdate ? (
+            <button
+              onClick={() => setConfirmUpdate(true)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
+            >
+              <RefreshCw size={18} />
+              Aplicar Atualização de Versão
+            </button>
+          ) : (
+            <div className="bg-blue-50 p-4 rounded-xl space-y-3 border border-blue-100">
+               <p className="text-sm font-bold text-center text-blue-900">Tem certeza? Isso forçará o recarregamento do app em todos os dispositivos.</p>
+               <div className="flex gap-2">
+                  <button onClick={() => setConfirmUpdate(false)} className="flex-1 py-3 bg-white text-slate-600 rounded-xl font-bold border border-slate-200 hover:bg-slate-50 transition-colors">Cancelar</button>
+                  <button onClick={() => {
+                    const current = localConfig.publishedVersion || '1.1.3';
+                    const parts = current.split('.');
+                    let nextVersion = '';
+                    if (parts.length === 3) {
+                      parts[2] = (parseInt(parts[2]) + 1).toString();
+                      nextVersion = parts.join('.');
+                    } else {
+                      nextVersion = current + '.1';
                     }
-                    window.location.reload();
-                  });
-                } else {
-                  window.location.reload();
-                }
-              }
-            }}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-200"
-          >
-            <RefreshCw size={18} />
-            Aplicar Atualização de Versão
-          </button>
+                    
+                    onUpdateAppConfig?.({ 
+                      ...localConfig, 
+                      publishedVersion: nextVersion,
+                      betaVersion: nextVersion
+                    });
+
+                    // Forçar recarregamento local também
+                    if ('serviceWorker' in navigator) {
+                      navigator.serviceWorker.getRegistrations().then(registrations => {
+                        for (let registration of registrations) {
+                          registration.unregister();
+                        }
+                        window.location.reload();
+                      });
+                    } else {
+                      window.location.reload();
+                    }
+                  }} className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-sm">Confirmar</button>
+               </div>
+             </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">

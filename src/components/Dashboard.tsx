@@ -1,5 +1,5 @@
 import { useMemo, ReactNode, useState } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { 
   TrendingUp, 
@@ -14,7 +14,8 @@ import {
   Info,
   Share2,
   Sparkles,
-  PlusCircle
+  PlusCircle,
+  X
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
@@ -62,8 +63,29 @@ export default function Dashboard({
   uniqueVisitors
 }: DashboardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [modalType, setModalType] = useState<'ganhos' | 'despesas' | null>(null);
   const currentMonthStr = format(new Date(), 'yyyy-MM');
+  const currentMonthAlt = format(new Date(), 'yyyy/MM');
   const isNewUser = fixedCosts.length === 0 && entries.length === 0;
+  
+  const detailsList = useMemo(() => {
+    if (!modalType) return [];
+    const filtered = entries.filter(e => {
+        const isCurrentMonth = e.data.startsWith(currentMonthAlt) || e.data.startsWith(currentMonthStr);
+        return isCurrentMonth && 
+        (modalType === 'ganhos' ? e.tipo === 'Ganhos' : e.tipo === 'Despesa');
+    });
+    
+    const grouped = filtered.reduce((acc, curr) => {
+        const cat = categories.find(c => c.id === curr.categoriaId)?.nome || 'Outros';
+        acc[cat] = (acc[cat] || 0) + curr.valor;
+        return acc;
+    }, {} as Record<string, number>);
+    
+    return Object.entries(grouped)
+      .map(([name, total]) => ({ name, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [entries, modalType, currentMonthAlt, categories]);
   
   const dailyWorkBurden = useMemo(() => {
     const workedDays = new Set(
@@ -443,12 +465,14 @@ export default function Dashboard({
           value={formatCurrency(totals.earnings)} 
           icon={<TrendingUp className="text-emerald-400" />}
           color="emerald"
+          onClick={() => setModalType('ganhos')}
         />
         <StatCard 
           title="Despesas Rua" 
           value={formatCurrency(totals.expenses)} 
           icon={<TrendingDown className="text-rose-400" />}
           color="rose"
+          onClick={() => setModalType('despesas')}
         />
       </div>
 
@@ -581,13 +605,90 @@ export default function Dashboard({
           </p>
         </div>
       )}
+
+      <AnimatePresence>
+        {modalType && (
+          <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setModalType(null)} 
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ y: "100%" }} 
+              animate={{ y: 0 }} 
+              exit={{ y: "100%" }} 
+              className="relative bg-white w-full max-w-md max-h-[80vh] rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            >
+              <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "p-2 rounded-xl",
+                    modalType === 'ganhos' ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"
+                  )}>
+                    {modalType === 'ganhos' ? <TrendingUp size={20} /> : <TrendingDown size={20} />}
+                  </div>
+                  <h2 className="font-bold text-slate-800 text-lg tracking-tight">
+                    {modalType === 'ganhos' ? 'Ganhos Brutos do Mês' : 'Despesas de Rua do Mês'}
+                  </h2>
+                </div>
+                <button 
+                  onClick={() => setModalType(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-5 overflow-y-auto space-y-3 bg-white">
+                {detailsList.length > 0 ? (
+                  <div className="space-y-3">
+                    {detailsList.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
+                        <span className="font-bold text-slate-700">{item.name}</span>
+                        <span className={cn(
+                          "font-black text-lg",
+                          modalType === 'ganhos' ? "text-emerald-600" : "text-rose-600"
+                        )}>
+                          {formatCurrency(item.total)}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                      <span className="font-black text-slate-400 uppercase tracking-widest text-xs">Total Parcial</span>
+                      <span className={cn(
+                        "font-black text-xl",
+                        modalType === 'ganhos' ? "text-emerald-600" : "text-rose-600"
+                      )}>
+                        {formatCurrency(detailsList.reduce((acc, item) => acc + item.total, 0))}
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400">
+                    <p className="font-bold">Nenhum registro encontrado</p>
+                    <p className="text-sm">Os lançamentos deste mês aparecerão aqui.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
-function StatCard({ title, value, icon, color }: { title: string, value: string, icon: ReactNode, color: 'emerald' | 'rose' }) {
+function StatCard({ title, value, icon, color, onClick }: { title: string, value: string, icon: ReactNode, color: 'emerald' | 'rose', onClick?: () => void }) {
   return (
-    <div className="bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/10">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "bg-white/10 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/10 flex flex-col justify-center",
+        onClick && "cursor-pointer hover:bg-white/20 active:scale-95 transition-all"
+      )}
+    >
       <div className={cn(
         "p-2 rounded-xl w-fit mb-3",
         color === 'emerald' ? "bg-emerald-500/20" : "bg-rose-500/20"
