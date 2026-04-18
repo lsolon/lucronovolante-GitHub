@@ -78,6 +78,12 @@ async function startServer() {
       fallthrough: false // If an asset is missing, don't fall through to index.html
     }));
 
+    // Prevent caching for service worker files and manifest so updates apply
+    app.use(['/sw.js', '/registerSW.js', '/manifest.webmanifest'], (req, res, next) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      next();
+    });
+
     app.use(express.static(distPath));
 
     app.get('*', (req, res) => {
