@@ -22,3 +22,23 @@ jobs:
           service: ${{ secrets.SERVICE_NAME }}
           region: ${{ secrets.REGION }}
           source: .
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Application
+        run: npm run build
+        env:
+          VITE_APPSHEET_APP_ID: ${{ secrets.VITE_APPSHEET_APP_ID }}
+          VITE_APPSHEET_ACCESS_KEY: ${{ secrets.VITE_APPSHEET_ACCESS_KEY }}
+          VITE_APPSHEET_TABLE_NAME: ${{ secrets.VITE_APPSHEET_TABLE_NAME }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Deploy to Firebase Hosting (Custom Domain)
+        run: npx firebase-tools deploy --only hosting --project gen-lang-client-0404948919 --non-interactive
+
