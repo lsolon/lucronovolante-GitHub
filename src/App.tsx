@@ -118,7 +118,8 @@ export default function App() {
       publishedVersion: APP_VERSION,
       betaVersion: APP_VERSION,
       maintenanceMode: false
-    }
+    },
+    isConfigLoaded: false
   });
 
   // Force update if hardcoded app version changes
@@ -145,7 +146,9 @@ export default function App() {
 
   // Force update if remote publishedVersion changes
   useEffect(() => {
-    if (!state.appConfig?.publishedVersion) return;
+    // Only check for remote updates if we have successfully loaded the config from Firebase
+    if (!state.isConfigLoaded || !state.appConfig?.publishedVersion) return;
+    
     const adminMode = user?.email === "leandrosolon@gmail.com";
     const remoteVersion = state.appConfig.publishedVersion;
     const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
@@ -168,7 +171,7 @@ export default function App() {
       // Just track it silently
       localStorage.setItem('remote_published_version', remoteVersion);
     }
-  }, [state.appConfig?.publishedVersion, user]);
+  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
 
   // Auth Listener
   useEffect(() => {
@@ -314,7 +317,7 @@ export default function App() {
       if (docSnap.exists()) {
         const config = docSnap.data() as any;
         console.log("App Config Loaded:", config);
-        setState(prev => ({ ...prev, appConfig: config }));
+        setState(prev => ({ ...prev, appConfig: config, isConfigLoaded: true }));
       } else {
         console.log("App Config not found, using defaults");
         // Default config if it doesn't exist yet
@@ -324,7 +327,8 @@ export default function App() {
             publishedVersion: '1.1.3',
             betaVersion: '1.1.3',
             maintenanceMode: true
-          }
+          },
+          isConfigLoaded: true
         }));
       }
     }, (error) => {
