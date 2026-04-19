@@ -79,7 +79,7 @@ import PWAPrompt from './components/PWAPrompt';
 import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
  
-const APP_VERSION = '1.1.4';
+const APP_VERSION = '1.1.5';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -121,7 +121,7 @@ export default function App() {
     }
   });
 
-  // Force update if version changes
+  // Force update if hardcoded app version changes
   useEffect(() => {
     const lastVersion = localStorage.getItem('app_version');
     if (lastVersion && lastVersion !== APP_VERSION) {
@@ -142,6 +142,33 @@ export default function App() {
       localStorage.setItem('app_version', APP_VERSION);
     }
   }, []);
+
+  // Force update if remote publishedVersion changes
+  useEffect(() => {
+    if (!state.appConfig?.publishedVersion) return;
+    const adminMode = user?.email === "leandrosolon@gmail.com";
+    const remoteVersion = state.appConfig.publishedVersion;
+    const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
+    
+    // Only reload if the remote version changes mid-session or across sessions
+    if (currentStoredVersion !== remoteVersion && !adminMode) {
+      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+      localStorage.setItem('remote_published_version', remoteVersion);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+          window.location.reload();
+        });
+      } else {
+        window.location.reload();
+      }
+    } else {
+      // Just track it silently
+      localStorage.setItem('remote_published_version', remoteVersion);
+    }
+  }, [state.appConfig?.publishedVersion, user]);
 
   // Auth Listener
   useEffect(() => {
