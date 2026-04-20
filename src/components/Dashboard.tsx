@@ -1,7 +1,7 @@
 import { useMemo, ReactNode, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format } from 'date-fns';
-import { 
+import { format, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
+import {
   TrendingUp, 
   TrendingDown, 
   Wallet, 
@@ -17,7 +17,7 @@ import {
   PlusCircle,
   X
 } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 
@@ -33,6 +33,7 @@ interface DashboardProps {
     todayEarnings: number;
     todayExpenses: number;
     paidFixedCostsDetails: { item: string; valor: number; data: string }[];
+    paidFixedCostsSum: number;
     unpaidFixedCosts: string[];
   };
   fixedCosts: FixedCost[];
@@ -63,6 +64,7 @@ export default function Dashboard({
   uniqueVisitors
 }: DashboardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showBurdenDetails, setShowBurdenDetails] = useState(false);
   const [modalType, setModalType] = useState<'ganhos' | 'despesas' | null>(null);
   const currentMonthStr = format(new Date(), 'yyyy-MM');
   const currentMonthAlt = format(new Date(), 'yyyy/MM');
@@ -88,17 +90,33 @@ export default function Dashboard({
   }, [entries, modalType, currentMonthAlt, categories]);
   
   const dailyWorkBurden = useMemo(() => {
+    // Already filtered by current month in App.tsx totals calculation, but Dashboard gets ALL entries
+    // Need to filter locally here to only count days in the current month
+    const start = startOfMonth(new Date());
+    const end = endOfMonth(new Date());
+    
+    const currentMonthEntries = entries.filter(e => {
+        const date = parseEntryDate(e.data);
+        return isWithinInterval(date, { start, end });
+    });
+
     const workedDays = new Set(
-      entries.filter(e => e.categoriaId === '10').map(e => e.data)
+      currentMonthEntries.filter(e => e.tipo === 'Ganhos').map(e => e.data)
     ).size;
     if (workedDays === 0) return null;
 
-    const totalFixed = fixedCosts.reduce((acc, fc) => acc + fc.valorMensal, 0);
-    const totalExpenses = entries
-      .filter(e => e.tipo === 'Despesa')
-      .reduce((acc, e) => acc + e.valor, 0);
-
-    return (totalFixed + totalExpenses) / workedDays;
+    // Custo Médio = (Custos Fixos Pendentes + Despesas de Rua) / dias trabalhados
+    const totalFixed = totals.totalFixedCosts || 0;
+    const paidFixed = totals.paidFixedCostsSum || 0;
+    const expenses = totals.expenses || 0;
+    
+    const remainingFixedCosts = Math.max(0, totalFixed - paidFixed);
+    const totalObligations = remainingFixedCosts + expenses;
+    
+    return {
+      burden: workedDays > 0 ? totalObligations / workedDays : 0,
+      days: workedDays
+    };
   }, [entries, fixedCosts]);
 
   const activeFixedCosts = useMemo(() => {
@@ -350,7 +368,7 @@ export default function Dashboard({
         <div className="mt-6 space-y-2">
           <div className="flex justify-between text-xs font-bold text-blue-200 uppercase tracking-wider">
             <span>Progresso da Quitação</span>
-            <span>{totals.progress.toFixed(1)}%</span>
+            <span>{formatCurrency(totals.earnings)} / {formatCurrency(totals.totalFixedCosts + totals.dailyExpenses)} ({totals.progress.toFixed(1)}%)</span>
           </div>
           <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
             <motion.div 
@@ -483,7 +501,7 @@ export default function Dashboard({
             <div className="p-2 bg-rose-500/10 rounded-xl">
               <TrendingDown className="text-rose-400 size-5" />
             </div>
-            <h3 className="font-bold text-white">Saldo a Pagar (Dívida Total)</h3>
+            <h3 className="font-bold text-white">Total de Gastos do Mês</h3>
           </div>
           <button 
             onClick={() => setShowDetails(!showDetails)}
@@ -524,18 +542,36 @@ export default function Dashboard({
       </div>
 
       {dailyWorkBurden !== null && (
-        <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
+        <div 
+          className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10 cursor-pointer"
+          onClick={() => setShowBurdenDetails(!showBurdenDetails)}
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-emerald-500/10 rounded-xl">
                 <Target className="text-emerald-400 size-5" />
               </div>
-              <h3 className="font-bold text-white">Custo Médio p/ Dia Trabalhado</h3>
+              <h3 className="font-bold text-white">Custo Médio p/ Dia</h3>
             </div>
-            <span className="text-lg font-black text-emerald-400">{formatCurrency(dailyWorkBurden)}</span>
+            <span className="text-lg font-black text-emerald-400">{formatCurrency(dailyWorkBurden.burden)}</span>
           </div>
-          <p className="text-[10px] text-blue-200 font-medium leading-tight">
-            (Total Custos Fixos + Total Despesas) divididos pelos dias com "Fechamento".
+          <p className="text-[10px] text-blue-200 font-medium leading-tight mb-2">
+            Foram {dailyWorkBurden.days} dias trabalhados esse mês.
+          </p>
+          
+          {showBurdenDetails && (
+            <div className="mt-3 p-3 bg-white/5 rounded-xl text-[10px] text-blue-100 font-mono">
+              <p>Detalhes do cálculo:</p>
+              <p>Custos Fixos Pendentes: {formatCurrency(Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0)))}</p>
+              <p>+ Despesas de Rua: {formatCurrency(totals.expenses || 0)}</p>
+              <p>-------------------------</p>
+              <p>= Total: {formatCurrency((Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0))) + (totals.expenses || 0))}</p>
+              <p>÷ {dailyWorkBurden.days} dias</p>
+            </div>
+          )}
+
+          <p className="text-[10px] text-blue-200 font-medium leading-tight opacity-70 italic mt-2">
+            Clique para ver detalhes do cálculo.
           </p>
         </div>
       )}

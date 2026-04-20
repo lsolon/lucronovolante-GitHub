@@ -455,11 +455,11 @@ export default function App() {
     const fixedCostPayments = currentMonthEntries.filter(e => {
       if (e.tipo !== 'Despesa') return false;
       const cat = state.categories.find(c => c.id === e.categoriaId);
-      const categoryName = cat?.nome.toLowerCase() || '';
-      const obs = e.obs?.toLowerCase() || '';
+      const categoryName = cat?.nome.toLowerCase().trim() || '';
+      const obs = e.obs?.toLowerCase().trim() || '';
       
       return activeFixedCosts.some(fc => {
-        const fcItem = fc.item.toLowerCase();
+        const fcItem = fc.item.toLowerCase().trim();
         // Match if category name is in fixed cost item name or vice versa
         // Or if observation contains the fixed cost item name
         return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
@@ -467,7 +467,7 @@ export default function App() {
     });
 
     const paidFixedCostsSum = fixedCostPayments.reduce((acc, curr) => acc + curr.valor, 0);
-    
+
     // Expenses that are NOT fixed cost payments (daily expenses)
     const dailyExpenses = expenses - paidFixedCostsSum;
 
@@ -479,7 +479,7 @@ export default function App() {
     // Real Profit = Earnings - Daily Expenses - Total Fixed Costs
     // This correctly accounts for the fixed costs once, regardless of whether they were paid or not
     const balance = earnings - dailyExpenses - totalFixedCosts;
-    
+
     // Prepare detail of paid fixed costs
     const paidFixedCostsDetails = fixedCostPayments.map(e => {
         const cat = state.categories.find(c => c.id === e.categoriaId);
@@ -504,10 +504,10 @@ export default function App() {
     const todayFixedCostPayments = todayEntries.filter(e => {
       if (e.tipo !== 'Despesa') return false;
       const cat = state.categories.find(c => c.id === e.categoriaId);
-      const categoryName = cat?.nome.toLowerCase() || '';
-      const obs = e.obs?.toLowerCase() || '';
+      const categoryName = cat?.nome.toLowerCase().trim() || '';
+      const obs = e.obs?.toLowerCase().trim() || '';
       return activeFixedCosts.some(fc => {
-        const fcItem = fc.item.toLowerCase();
+        const fcItem = fc.item.toLowerCase().trim();
         return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
       });
     }).reduce((acc, curr) => acc + curr.valor, 0);
@@ -524,16 +524,19 @@ export default function App() {
         const paidAmount = fixedCostPayments
             .filter(e => {
                 const cat = state.categories.find(c => c.id === e.categoriaId);
-                const categoryName = cat?.nome.toLowerCase() || '';
-                const obs = e.obs?.toLowerCase() || '';
-                const fcItem = fc.item.toLowerCase();
+                const categoryName = cat?.nome.toLowerCase().trim() || '';
+                const obs = e.obs?.toLowerCase().trim() || '';
+                const fcItem = fc.item.toLowerCase().trim();
                 return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
             })
             .reduce((acc, e) => acc + e.valor, 0);
-        return paidAmount < fc.valorMensal;
+        
+        // Define a tolerance of R$ 50,00 to treat as "Paid" even if values differ slightly
+        const TOLERANCE = 50.00;
+        return (fc.valorMensal - paidAmount) > TOLERANCE;
     }).map(fc => fc.item);
     
-    return { earnings, expenses, totalFixedCosts, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts };
+    return { earnings, expenses, totalFixedCosts, paidFixedCostsSum, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts };
   }, [currentMonthEntries, state.fixedCosts, state.categories]);
 
   const nextOilChange = useMemo(() => {

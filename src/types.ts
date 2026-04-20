@@ -37,6 +37,11 @@ export interface Entry {
   linkNota?: string;
   obs?: string;
   ganhos?: Record<string, number>; // Dynamic earnings by category ID
+  ratings?: {
+    servico: number;
+    higiene: number;
+    atendimento: number;
+  };
 }
 
 export interface AppSheetMapping {

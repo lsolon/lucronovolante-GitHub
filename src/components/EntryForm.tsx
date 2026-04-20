@@ -15,7 +15,8 @@ import {
   QrCode,
   X,
   CheckCircle2,
-  Calendar
+  Calendar,
+  Star
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -77,6 +78,11 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
     }
     return null;
   });
+  
+  // Star Ratings State
+  const [ratingServico, setRatingServico] = useState(initialData?.ratings?.servico || 0);
+  const [ratingHigiene, setRatingHigiene] = useState(initialData?.ratings?.higiene || 0);
+  const [ratingAtendimento, setRatingAtendimento] = useState(initialData?.ratings?.atendimento || 0);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialData?.photoUrl || null);
   const [qrCodeData, setQrCodeData] = useState<string | null>(initialData?.qrCodeData || null);
@@ -87,9 +93,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const selectedCategory = categories.find(c => c.id === categoriaId);
   const isAbastecimento = selectedCategory?.nome.toLowerCase() === 'abastecimento';
+  const isAlimentacao = selectedCategory?.nome.toLowerCase() === 'alimentação' || selectedCategory?.nome.toLowerCase() === 'alimentacao';
   const isTrocaOleo = selectedCategory?.nome.toLowerCase() === 'troca de oleo' || selectedCategory?.nome.toLowerCase() === 'troca de óleo';
   const isMaintenance = selectedCategory?.nome.toLowerCase() === 'manutenção' || selectedCategory?.parentId === '3';
-  const hasLocation = ['abastecimento', 'lavagem', 'manutenção'].includes(selectedCategory?.nome.toLowerCase() || '') || selectedCategory?.parentId === '3';
+  const hasLocation = ['abastecimento', 'lavagem', 'manutenção', 'alimentação', 'alimentacao'].includes(selectedCategory?.nome.toLowerCase() || '') || selectedCategory?.parentId === '3';
 
   // Auto-get location if category supports it
   useEffect(() => {
@@ -523,7 +530,12 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       qrCodeData: qrCodeData || undefined,
       linkNota: linkNota || undefined,
       ganhos: numericGanhos,
-      obs
+      obs,
+      ratings: (isAbastecimento || isAlimentacao) ? {
+        servico: ratingServico,
+        higiene: ratingHigiene,
+        atendimento: ratingAtendimento
+      } : undefined
     });
   };
 
@@ -992,8 +1004,21 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
           />
         </div>
 
+        {(isAbastecimento || isAlimentacao) && (
+          <div className="space-y-3 bg-yellow-50 border border-yellow-100 p-4 rounded-2xl mt-4">
+             <label className="text-xs font-bold text-yellow-800 uppercase tracking-wider ml-1">
+               Avaliação do {isAlimentacao ? 'Local' : 'Posto'} (Opcional)
+             </label>
+             <div className="space-y-2">
+                <StarRating label={`Serviço ${isAlimentacao ? '(Comida/Preço)' : '(Gasolina/Bomba)'}`} value={ratingServico} onChange={setRatingServico} />
+                <StarRating label={`Higiene ${isAlimentacao ? '(Mesas/Banheiro)' : '(Banheiros/Loja)'}`} value={ratingHigiene} onChange={setRatingHigiene} />
+                <StarRating label={`Atendimento ${isAlimentacao ? '(Garçom/Caixa)' : '(Frentista)'}`} value={ratingAtendimento} onChange={setRatingAtendimento} />
+             </div>
+          </div>
+        )}
+
         {location && (
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 mt-4">
             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Localização Geográfica</label>
             <div className="h-32 w-full rounded-2xl overflow-hidden border border-slate-200 relative z-0">
               <img 
@@ -1064,5 +1089,31 @@ function InputGroup({ label, value, onChange, placeholder, type = "text", icon, 
       </div>
     </div>
   );
+}
+
+function StarRating({ label, value, onChange }: { label: string, value: number, onChange: (v: number) => void }) {
+  return (
+    <div className="flex justify-between items-center py-1">
+       <span className="text-xs font-bold text-slate-700">{label}</span>
+       <div className="flex gap-1">
+         {[1, 2, 3, 4, 5].map((star) => (
+           <button
+             key={star}
+             type="button"
+             className="focus:outline-none focus:scale-110 transition-transform p-0.5"
+             onClick={() => onChange(star === value ? 0 : star)}
+           >
+             <Star 
+                size={18} 
+                className={cn(
+                  "transition-colors",
+                  star <= value ? "fill-yellow-500 text-yellow-500" : "text-slate-300"
+                )} 
+             />
+           </button>
+         ))}
+       </div>
+    </div>
+  )
 }
 

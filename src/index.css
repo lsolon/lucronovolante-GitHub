@@ -31,14 +31,14 @@
   display: none !important;
 }
 
-/* Global override: MMMMMMMMMChange all w     hite and near-white text to yellow */
+/* Global override: Change all white and near-white text */
 .text-white,
 .text-slate-50,
 .text-slate-100,
 .text-blue-50,
 .text-blue-100,
 .text-gray-50 {
-  color: #eeede9 !important; /* text-yellow-                    400 */
+  color: #eeede9 !important;
 }
 
 /* Ensure icons that were white also become yellow */
