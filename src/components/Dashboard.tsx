@@ -68,6 +68,7 @@ export default function Dashboard({
   const [showDetails, setShowDetails] = useState(false);
   const [showBurdenDetails, setShowBurdenDetails] = useState(false);
   const [modalType, setModalType] = useState<'ganhos' | 'despesas' | null>(null);
+  const [taxResult, setTaxResult] = useState<string | null>(null);
   const currentMonthStr = format(new Date(), 'yyyy-MM');
   const currentMonthAlt = format(new Date(), 'yyyy/MM');
   const isNewUser = fixedCosts.length === 0 && entries.length === 0;
