@@ -47,6 +47,7 @@ interface DashboardProps {
   onOpenAIStudio: () => void;
   isAdmin?: boolean;
   uniqueVisitors?: number;
+  email?: string;
 }
 
 export default function Dashboard({ 
@@ -61,7 +62,8 @@ export default function Dashboard({
   onViewMaintenance,
   onOpenAIStudio,
   isAdmin,
-  uniqueVisitors
+  uniqueVisitors,
+  email
 }: DashboardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showBurdenDetails, setShowBurdenDetails] = useState(false);
@@ -541,7 +543,7 @@ export default function Dashboard({
         )}
       </div>
 
-      {dailyWorkBurden !== null && (
+      {dailyWorkBurden !== null && email === 'leandrosolon@gmail.com' && (
         <div 
           className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10 cursor-pointer"
           onClick={() => setShowBurdenDetails(!showBurdenDetails)}

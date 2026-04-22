@@ -930,6 +930,7 @@ export default function App() {
                 onOpenAIStudio={() => setIsAIVideoStudioOpen(true)}
                 isAdmin={isAdmin}
                 uniqueVisitors={globalStats?.uniqueVisitors}
+                email={user?.email || undefined}
               />
             </motion.div>
           )}

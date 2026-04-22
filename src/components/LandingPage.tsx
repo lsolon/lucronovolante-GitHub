@@ -186,6 +186,11 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               title="Dados na Nuvem"
               description="Nunca perca seus registros. Seus dados são salvos com segurança e acessíveis de qualquer lugar."
             />
+            <FeatureCard 
+              icon={<CheckCircle2 className="text-purple-600" />}
+              title="Facilite seu Imposto de Renda"
+              description="Armazene fotos das suas notas fiscais de despesas diretamente no app, mantendo tudo organizado para comprovação e simplificando sua declaração."
+            />
           </div>
         </div>
       </section>
