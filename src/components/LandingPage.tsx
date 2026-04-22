@@ -24,6 +24,7 @@ interface LandingPageProps {
 
 export default function LandingPage({ onLogin, error }: LandingPageProps) {
   const [scrolled, setScrolled] = useState(false);
+  const [showTaxExample, setShowTaxExample] = useState(false);
 
   const handleShare = async () => {
     const shareData = {
@@ -160,14 +161,46 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               <div className="p-4 bg-white/10 rounded-2xl">
                 <CheckCircle2 className="size-12 text-white" />
               </div>
-              <div>
+              <div className="flex-grow">
                 <h3 className="text-2xl font-black mb-2 tracking-tight">Facilite seu Imposto de Renda</h3>
-                <p className="text-purple-100 leading-relaxed font-medium text-lg">
+                <p className="text-purple-100 leading-relaxed font-medium text-lg mb-4">
                   Armazene fotos das suas notas fiscais de despesas diretamente no app. 
                   Mantenha tudo organizado para comprovação e simplifique sua declaração anual.
                 </p>
+                <button 
+                  onClick={() => setShowTaxExample(true)}
+                  className="bg-white text-purple-700 px-6 py-3 rounded-full font-black text-sm hover:bg-purple-50 transition-colors"
+                >
+                  Ver Exemplo
+                </button>
               </div>
             </div>
+
+            {showTaxExample && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/50 backdrop-blur-sm" onClick={() => setShowTaxExample(false)}>
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-white p-8 rounded-3xl max-w-lg w-full text-slate-800 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-2xl font-black mb-4">Exemplo de Uso</h3>
+                  <p className="mb-4 text-slate-600">Veja como você organiza suas despesas:</p>
+                  <div className="bg-slate-100 p-4 rounded-2xl rounded-tr-none font-mono text-xs mb-4">
+                    [Image: Nota Fiscal posto de gasolina] <br/>
+                    Data: 20/04/2026 <br/>
+                    Valor: R$ 150,00 <br/>
+                    Categoria: Combustível
+                  </div>
+                  <button 
+                    onClick={() => setShowTaxExample(false)}
+                    className="w-full bg-blue-600 text-white rounded-full py-3 font-bold"
+                  >
+                    Entendido
+                  </button>
+                </motion.div>
+              </div>
+            )}
 
             <FeatureCard 
               icon={<TrendingUp className="text-emerald-600" />}
