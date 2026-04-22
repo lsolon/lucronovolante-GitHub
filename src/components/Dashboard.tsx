@@ -619,6 +619,50 @@ export default function Dashboard({
         </div>
       </div>
 
+          {/* IRPF 2026 Admin Card */}
+      {isAdmin && (
+        <div className="bg-indigo-600 p-6 rounded-3xl shadow-2xl text-white cursor-pointer mb-6" onClick={() => setShowBurdenDetails(!showBurdenDetails)}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-lg">Carnê-Leão (IRPF 2026)</h3>
+            <Info className={cn("text-white/50 size-5", showBurdenDetails && "text-white")} />
+          </div>
+          
+          <div className="text-sm font-medium opacity-90 mb-4">
+            {(() => {
+              const base = totals.earnings * 0.6;
+              const { tax, bracket } = base > 9000 ? { tax: 800, bracket: "27,5%" } 
+                                  : base > 7200 ? { tax: 330, bracket: "22,5%" } 
+                                  : base > 6000 ? { tax: 150, bracket: "15%" } 
+                                  : base > 5400 ? { tax: 60, bracket: "7,5%" } 
+                                  : { tax: 0, bracket: "0%" };
+              return base > 5000 
+                ? <span className="text-rose-200 font-bold">⚠️ Atenção: Alíquota {bracket} | Est. {formatCurrency(tax)}</span>
+                : <span className="text-emerald-200 font-bold block">😊 Isento este mês. <span className="text-white/80 font-normal block text-[10px]">Aconselhável declarar rendimento.</span></span>;
+            })()}
+          </div>
+
+          <div className="text-3xl font-black tracking-tighter">
+            {formatCurrency(totals.earnings * 0.6)}
+          </div>
+          <p className="text-xs opacity-70 font-medium">Base Tributável (60% dos ganhos)</p>
+
+          {showBurdenDetails && (
+            <div className="mt-4 pt-4 border-t border-white/20 space-y-2 text-white text-xs">
+              <div className="flex justify-between">
+                <span>Ganhos Totais:</span>
+                <span className="font-bold">{formatCurrency(totals.earnings)}</span>
+              </div>
+              {totals.earnings * 0.6 > 5000 && (
+                <div className="mt-2 p-2 bg-rose-700/50 rounded-lg">
+                  <p className="font-bold">Ação próxima:</p>
+                  <p>Acesse o e-CAC e lance R$ {formatCurrency(totals.earnings * 0.6)}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Net Profit Card */}
       {isAdmin && (
         <div className={cn(
@@ -642,24 +686,9 @@ export default function Dashboard({
             * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
             A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
           </p>
-          <div className="mt-4">
-            <button
-              onClick={() => {
-                const totalEarnings = totals.earnings || 0;
-                const baseCalculation = totalEarnings * 0.6;
-                // Using a simple state-less approach for now or just updating if we can. 
-                // Since this is a functional component, let's just make it show results directly for now if we were to refactor.
-                // For simplicity, let's just keep the button but make sure it works. 
-                // Actually, let's just make it show clearly.
-                alert(`Total de Ganhos: R$ ${totalEarnings.toFixed(2)}\nBase tributável (60%): R$ ${baseCalculation.toFixed(2)}`);
-              }}
-              className="w-full bg-white text-indigo-700 font-black text-xs py-2 rounded-xl hover:bg-indigo-50 transition-colors"
-            >
-              Exibir Cálculo do Imposto
-            </button>
-            <p className="text-[9px] font-bold mt-2 text-white/70 text-center uppercase tracking-wider">
-              Base: Ganhos * 0,6
-            </p>
+          {/* Administration section - placeholder for removed button */}
+          <div className="mt-4 border-t border-white/10 pt-4 text-[10px] text-white/50">
+            Cálculo tributário disponível abaixo.
           </div>
         </div>
       )}
