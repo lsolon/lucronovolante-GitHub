@@ -641,6 +641,25 @@ export default function Dashboard({
             * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
             A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
           </p>
+          <div className="mt-4">
+            <button
+              onClick={() => {
+                const totalEarnings = totals.earnings || 0;
+                const baseCalculation = totalEarnings * 0.6;
+                // Using a simple state-less approach for now or just updating if we can. 
+                // Since this is a functional component, let's just make it show results directly for now if we were to refactor.
+                // For simplicity, let's just keep the button but make sure it works. 
+                // Actually, let's just make it show clearly.
+                alert(`Total de Ganhos: R$ ${totalEarnings.toFixed(2)}\nBase tributável (60%): R$ ${baseCalculation.toFixed(2)}`);
+              }}
+              className="w-full bg-white text-indigo-700 font-black text-xs py-2 rounded-xl hover:bg-indigo-50 transition-colors"
+            >
+              Exibir Cálculo do Imposto
+            </button>
+            <p className="text-[9px] font-bold mt-2 text-white/70 text-center uppercase tracking-wider">
+              Base: Ganhos * 0,6
+            </p>
+          </div>
         </div>
       )}
 
