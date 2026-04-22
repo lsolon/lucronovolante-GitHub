@@ -156,6 +156,19 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
+            <div className="md:col-span-3 bg-gradient-to-br from-purple-600 to-indigo-700 p-10 rounded-[32px] shadow-2xl text-white flex flex-col md:flex-row items-center gap-8">
+              <div className="p-4 bg-white/10 rounded-2xl">
+                <CheckCircle2 className="size-12 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-black mb-2 tracking-tight">Facilite seu Imposto de Renda</h3>
+                <p className="text-purple-100 leading-relaxed font-medium text-lg">
+                  Armazene fotos das suas notas fiscais de despesas diretamente no app. 
+                  Mantenha tudo organizado para comprovação e simplifique sua declaração anual.
+                </p>
+              </div>
+            </div>
+
             <FeatureCard 
               icon={<TrendingUp className="text-emerald-600" />}
               title="Lucro Real"
@@ -185,11 +198,6 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               icon={<Shield className="text-rose-600" />}
               title="Dados na Nuvem"
               description="Nunca perca seus registros. Seus dados são salvos com segurança e acessíveis de qualquer lugar."
-            />
-            <FeatureCard 
-              icon={<CheckCircle2 className="text-purple-600" />}
-              title="Facilite seu Imposto de Renda"
-              description="Armazene fotos das suas notas fiscais de despesas diretamente no app, mantendo tudo organizado para comprovação e simplificando sua declaração."
             />
           </div>
         </div>
