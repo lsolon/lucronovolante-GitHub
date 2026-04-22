@@ -94,15 +94,15 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               <span className="text-blue-600">Comece a lucrar.</span>
             </h1>
             <p className="text-lg text-slate-500 mb-8 max-w-lg leading-relaxed">
-              A ferramenta definitiva para motoristas Uber, 99 e InDrive. Controle seus ganhos, despesas e manutenções em tempo real com inteligência financeira.
+              A ferramenta definitiva para motoristas de aplicativo, Táxi e entregadores. Controle seus ganhos, despesas e manutenções em tempo real com inteligência financeira.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <button 
                 onClick={onLogin}
-                className="bg-blue-600 text-white px-8 py-4 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-2 group"
+                className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex flex-col items-center justify-center group"
               >
-                Começar Agora Grátis
-                <ArrowRight className="group-hover:translate-x-1 transition-transform" />
+                <span>Começar Agora Grátis</span>
+                <span className="text-xs font-normal opacity-90">Teste por 30 dias</span>
               </button>
               <button 
                 onClick={handleShare}
@@ -184,13 +184,24 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
                   className="bg-white p-8 rounded-3xl max-w-lg w-full text-slate-800 shadow-2xl"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <h3 className="text-2xl font-black mb-4">Exemplo de Uso</h3>
-                  <p className="mb-4 text-slate-600">Veja como você organiza suas despesas:</p>
-                  <div className="bg-slate-100 p-4 rounded-2xl rounded-tr-none font-mono text-xs mb-4">
-                    [Image: Nota Fiscal posto de gasolina] <br/>
-                    Data: 20/04/2026 <br/>
-                    Valor: R$ 150,00 <br/>
-                    Categoria: Combustível
+                  <h3 className="text-2xl font-black mb-4">Exemplo de Uso e Impostos</h3>
+                  <div className="space-y-4 text-slate-600">
+                    <p>Veja como você organiza suas despesas:</p>
+                    <div className="bg-slate-100 p-4 rounded-2xl font-mono text-xs">
+                      [Image: Nota Fiscal posto de gasolina] <br/>
+                      Data: 20/04/2026 <br/>
+                      Valor: R$ 150,00 <br/>
+                      Categoria: Combustível
+                    </div>
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                      <p className="font-bold text-blue-900 flex items-center gap-2 mb-2">
+                        <Car className="size-5" /> Regra especial:
+                      </p>
+                      <p className="text-sm">
+                        Segundo a legislação, você só paga imposto sobre <strong>60% do que recebeu</strong>. 
+                        Os outros <strong>40% não são tributados</strong>.
+                      </p>
+                    </div>
                   </div>
                   <button 
                     onClick={() => setShowTaxExample(false)}
