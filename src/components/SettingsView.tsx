@@ -38,6 +38,7 @@ import { getCategoryStyle } from '../lib/category-styles';
 import { fetchAppSheetData, mapAppSheetToEntry, addRowsToAppSheet, mapEntryToAppSheet } from '../services/appsheetService';
 import { getGlobalStats, getAllUsers } from '../services/statsService';
 import AIVideoStudio from './AIVideoStudio';
+import MarketingFlyer from './MarketingFlyer';
 import { addBacklogItem, getBacklogItems, deleteBacklogItem, toggleBacklogItemStatus } from '../services/backlogService';
 import { BacklogItem } from '../types';
 import firebaseConfig from '../../firebase-applet-config.json';
@@ -99,6 +100,7 @@ export default function SettingsView({
   const [isPushingToAppSheet, setIsPushingToAppSheet] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [isMappingOpen, setIsMappingOpen] = useState(false);
+  const [isFlyerOpen, setIsFlyerOpen] = useState(false);
   const [appSheetColumns, setAppSheetColumns] = useState<string[]>([]);
   const [isFetchingColumns, setIsFetchingColumns] = useState(false);
   const [localMapping, setLocalMapping] = useState<Partial<AppSheetMapping>>({});
@@ -816,6 +818,13 @@ export default function SettingsView({
               </button>
             </div>
 
+            <button 
+              onClick={() => setIsFlyerOpen(true)}
+              className="w-full mt-3 flex items-center justify-center gap-2 p-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold text-sm hover:bg-indigo-100 transition-all border border-indigo-100"
+            >
+              Imprimir Panfleto / Flyer
+            </button>
+
             <div className="pt-6 border-t border-slate-100 space-y-6">
               <div>
                 <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
@@ -1219,7 +1228,7 @@ export default function SettingsView({
 
       {/* Modals */}
       <AnimatePresence>
-        {/* AI Video Studio is now handled in App.tsx */}
+        {isFlyerOpen && <MarketingFlyer onClose={() => setIsFlyerOpen(false)} />}
       </AnimatePresence>
     </div>
   );

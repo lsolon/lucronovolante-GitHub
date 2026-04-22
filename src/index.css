@@ -98,3 +98,23 @@ select {
   -moz-appearance: none;
   appearance: none;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-flyer, #printable-flyer * {
+    visibility: visible;
+  }
+  #printable-flyer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100vw;
+  }
+  /* Keep background colors on print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

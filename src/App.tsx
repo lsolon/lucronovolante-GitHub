@@ -78,7 +78,8 @@ import TutorialModal from './components/TutorialModal';
 import PWAPrompt from './components/PWAPrompt';
 import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
- 
+import MarketingFlyer from './components/MarketingFlyer';
+
 const APP_VERSION = '1.1.5';
  
 export default function App() {
