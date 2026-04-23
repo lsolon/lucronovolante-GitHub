@@ -260,8 +260,8 @@ export default function Dashboard({
         </div>
       )}
       
-      {/* Share App Button */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Share App & Marketing Buttons */}
+      <div className={cn("grid gap-3", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
         <button 
           onClick={handleShare}
           className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all"
@@ -269,13 +269,15 @@ export default function Dashboard({
           <Share2 size={18} className="text-blue-600" />
           Indicar App
         </button>
-        <button 
-          onClick={onOpenAIStudio}
-          className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all"
-        >
-          <Sparkles size={18} className="text-blue-200" />
-          Criar Propaganda
-        </button>
+        {isAdmin && (
+          <button 
+            onClick={onOpenAIStudio}
+            className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all"
+          >
+            <Sparkles size={18} className="text-blue-200" />
+            Criar Propaganda
+          </button>
+        )}
       </div>
 
 
