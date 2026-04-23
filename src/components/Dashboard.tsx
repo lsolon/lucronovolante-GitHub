@@ -544,7 +544,7 @@ export default function Dashboard({
         )}
       </div>
 
-      {dailyWorkBurden !== null && email === 'leandrosolon@gmail.com' && (
+      {dailyWorkBurden !== null && ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'].includes(email || '') && (
         <div 
           className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10 cursor-pointer"
           onClick={() => setShowBurdenDetails(!showBurdenDetails)}

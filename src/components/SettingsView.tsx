@@ -2139,7 +2139,7 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
 
         <div className="pt-4 border-t border-slate-100">
           <p className="text-[10px] text-slate-400 italic">
-            * Estas estatísticas excluem o administrador leandrosolon@gmail.com.
+            * Estas estatísticas excluem os administradores leandrosolon@gmail.com e leandrosolon0@gmail.com.
           </p>
         </div>
       </div>

@@ -164,7 +164,8 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const handleExtractFromImage = async () => {
     if (!photoUrl) return;
-    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
+    const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+    if (!auth.currentUser?.email || !admins.includes(auth.currentUser.email)) {
       alert('Esta funcionalidade está disponível apenas para o administrador.');
       return;
     }
@@ -191,7 +192,8 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const handleExtractFromUrl = async (url: string) => {
     if (!url) return;
-    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
+    const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+    if (!auth.currentUser?.email || !admins.includes(auth.currentUser.email)) {
       alert('Esta funcionalidade está disponível apenas para o administrador.');
       return;
     }
