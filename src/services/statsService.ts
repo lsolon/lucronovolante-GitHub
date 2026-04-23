@@ -7,9 +7,9 @@ const STATS_DOC_PATH = 'stats/global';
 const VISITOR_KEY = 'lucro_no_volante_visitor_id';
 
 export async function trackVisit(user: { uid: string, email?: string | null, displayName?: string | null }) {
-  // Skip tracking for admin and test accounts
-  const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
-  if (user.email && admins.includes(user.email)) {
+  // Skip tracking for admin and internal test account
+  const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+  if (user.email && excludedEmails.includes(user.email)) {
     console.log('Admin/Test visit - skipping stats increment');
     return;
   }
@@ -66,7 +66,7 @@ export async function getAllUsers(): Promise<any[]> {
     const usersRef = collection(db, 'users');
     const q = query(usersRef, orderBy('lastSeen', 'desc'));
     const querySnapshot = await getDocs(q);
-    const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+    const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
     
     return querySnapshot.docs
       .map(doc => ({
@@ -76,7 +76,7 @@ export async function getAllUsers(): Promise<any[]> {
           ? doc.data().lastSeen.toDate().toISOString() 
           : doc.data().lastSeen
       }))
-      .filter(user => user.email && !admins.includes(user.email));
+      .filter(user => user.email && !excludedEmails.includes(user.email));
   } catch (error) {
     console.error('Error getting all users:', error);
     return [];

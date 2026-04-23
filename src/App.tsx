@@ -150,7 +150,7 @@ export default function App() {
     // Only check for remote updates if we have successfully loaded the config from Firebase
     if (!state.isConfigLoaded || !state.appConfig?.publishedVersion) return;
     
-    const adminMode = user?.email && ["leandrosolon@gmail.com", "leandrosolon0@gmail.com"].includes(user.email);
+    const adminMode = user?.email === "leandrosolon@gmail.com";
     const remoteVersion = state.appConfig.publishedVersion;
     const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
     
@@ -357,8 +357,7 @@ export default function App() {
 
   const isAdmin = useMemo(() => {
     if (!user?.email) return false;
-    const adminEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
-    return adminEmails.includes(user.email.toLowerCase().trim());
+    return user.email.toLowerCase().trim() === 'leandrosolon@gmail.com';
   }, [user]);
 
   // Test Connection
@@ -803,8 +802,7 @@ export default function App() {
 
   const isTrialExpired = useMemo(() => {
     // Admin bypass
-    const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
-    if (user?.email && admins.includes(user.email)) return false;
+    if (user?.email === 'leandrosolon@gmail.com') return false;
     
     if (!state.trialStartDate) return false;
     const start = new Date(state.trialStartDate).getTime();
@@ -970,7 +968,7 @@ export default function App() {
               />
             </motion.div>
           )}
-          {activeTab === 'map' && user?.email && ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'].includes(user.email) && (
+          {activeTab === 'map' && user?.email === 'leandrosolon@gmail.com' && (
             <motion.div
               key="map"
               initial={{ opacity: 0, y: 10 }}

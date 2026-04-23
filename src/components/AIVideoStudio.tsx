@@ -107,8 +107,7 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
   const handleSend = async (text: string = input) => {
     if (!text.trim() || isLoading) return;
 
-    const admins = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
-    if (!auth.currentUser?.email || !admins.includes(auth.currentUser.email)) {
+    if (auth.currentUser?.email !== 'leandrosolon@gmail.com') {
       setMessages(prev => [...prev, { role: 'model', text: 'Desculpe, este recurso está disponível apenas para o administrador autorizado.' }]);
       return;
     }
