@@ -544,7 +544,7 @@ export default function Dashboard({
         )}
       </div>
 
-      {dailyWorkBurden !== null && ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'].includes(email || '') && (
+      {dailyWorkBurden !== null && (
         <div 
           className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10 cursor-pointer"
           onClick={() => setShowBurdenDetails(!showBurdenDetails)}
@@ -619,79 +619,74 @@ export default function Dashboard({
         </div>
       </div>
 
-          {/* IRPF 2026 Admin Card */}
-      {isAdmin && (
-        <div className="bg-indigo-600 p-6 rounded-3xl shadow-2xl text-white cursor-pointer mb-6" onClick={() => setShowBurdenDetails(!showBurdenDetails)}>
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-bold text-lg">Carnê-Leão (IRPF 2026)</h3>
-            <Info className={cn("text-white/50 size-5", showBurdenDetails && "text-white")} />
-          </div>
-          
-          <div className="text-sm font-medium opacity-90 mb-4">
-            {(() => {
-              const base = totals.earnings * 0.6;
-              const { tax, bracket } = base > 9000 ? { tax: 800, bracket: "27,5%" } 
-                                  : base > 7200 ? { tax: 330, bracket: "22,5%" } 
-                                  : base > 6000 ? { tax: 150, bracket: "15%" } 
-                                  : base > 5400 ? { tax: 60, bracket: "7,5%" } 
-                                  : { tax: 0, bracket: "0%" };
-              return base > 5000 
-                ? <span className="text-rose-200 font-bold">⚠️ Atenção: Alíquota {bracket} | Est. {formatCurrency(tax)}</span>
-                : <span className="text-emerald-200 font-bold block">😊 Isento este mês. <span className="text-white/80 font-normal block text-[10px]">Aconselhável declarar rendimento.</span></span>;
-            })()}
-          </div>
-
-          <div className="text-3xl font-black tracking-tighter">
-            {formatCurrency(totals.earnings * 0.6)}
-          </div>
-          <p className="text-xs opacity-70 font-medium">Base Tributável (60% dos ganhos)</p>
-
-          {showBurdenDetails && (
-            <div className="mt-4 pt-4 border-t border-white/20 space-y-2 text-white text-xs">
-              <div className="flex justify-between">
-                <span>Ganhos Totais:</span>
-                <span className="font-bold">{formatCurrency(totals.earnings)}</span>
-              </div>
-              {totals.earnings * 0.6 > 5000 && (
-                <div className="mt-2 p-2 bg-rose-700/50 rounded-lg">
-                  <p className="font-bold">Ação próxima:</p>
-                  <p>Acesse o e-CAC e lance R$ {formatCurrency(totals.earnings * 0.6)}</p>
-                </div>
-              )}
-            </div>
-          )}
+      {/* IRPF 2026 Card */}
+      <div className="bg-indigo-600 p-6 rounded-3xl shadow-2xl text-white cursor-pointer mb-6" onClick={() => setShowBurdenDetails(!showBurdenDetails)}>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold text-lg">Carnê-Leão (IRPF 2026)</h3>
+          <Info className={cn("text-white/50 size-5", showBurdenDetails && "text-white")} />
         </div>
-      )}
+        
+        <div className="text-sm font-medium opacity-90 mb-4">
+          {(() => {
+            const base = totals.earnings * 0.6;
+            const { tax, bracket } = base > 9000 ? { tax: 800, bracket: "27,5%" } 
+                                : base > 7200 ? { tax: 330, bracket: "22,5%" } 
+                                : base > 6000 ? { tax: 150, bracket: "15%" } 
+                                : base > 5400 ? { tax: 60, bracket: "7,5%" } 
+                                : { tax: 0, bracket: "0%" };
+            return base > 5000 
+              ? <span className="text-rose-200 font-bold">⚠️ Atenção: Alíquota {bracket} | Est. {formatCurrency(tax)}</span>
+              : <span className="text-emerald-200 font-bold block">😊 Isento este mês. <span className="text-white/80 font-normal block text-[10px]">Aconselhável declarar rendimento.</span></span>;
+          })()}
+        </div>
+
+        <div className="text-3xl font-black tracking-tighter">
+          {formatCurrency(totals.earnings * 0.6)}
+        </div>
+        <p className="text-xs opacity-70 font-medium">Base Tributável (60% dos ganhos)</p>
+
+        {showBurdenDetails && (
+          <div className="mt-4 pt-4 border-t border-white/20 space-y-2 text-white text-xs">
+            <div className="flex justify-between">
+              <span>Ganhos Totais:</span>
+              <span className="font-bold">{formatCurrency(totals.earnings)}</span>
+            </div>
+            {totals.earnings * 0.6 > 5000 && (
+              <div className="mt-2 p-2 bg-rose-700/50 rounded-lg">
+                <p className="font-bold">Ação próxima:</p>
+                <p>Acesse o e-CAC e lance R$ {formatCurrency(totals.earnings * 0.6)}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Net Profit Card */}
-      {isAdmin && (
-        <div className={cn(
-          "p-6 rounded-3xl shadow-2xl text-white transition-colors duration-500",
-          totals.balance >= 0 ? "bg-emerald-600 shadow-emerald-900/20" : "bg-rose-600 shadow-rose-900/20"
-        )}>
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Lucro Real Estimado</p>
-              <h2 className="text-4xl font-black tracking-tighter">
-                {formatCurrency(totals.balance)}
-              </h2>
-            </div>
-            <div className="text-right bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/20">
-              <p className="text-[9px] font-black uppercase tracking-wider opacity-90 mb-1">Meta Diária Sugerida</p>
-              <p className="text-xl font-black">{formatCurrency(dailyGoalData.target)}</p>
-              <p className="text-[8px] font-bold opacity-70 mt-1">Custo + 10% Lucro</p>
-            </div>
+      <div className={cn(
+        "p-6 rounded-3xl shadow-2xl text-white transition-colors duration-500",
+        totals.balance >= 0 ? "bg-emerald-600 shadow-emerald-900/20" : "bg-rose-600 shadow-rose-900/20"
+      )}>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest opacity-80 mb-1">Lucro Real Estimado</p>
+            <h2 className="text-4xl font-black tracking-tighter">
+              {formatCurrency(totals.balance)}
+            </h2>
           </div>
-          <p className="text-[10px] font-medium opacity-70 leading-tight">
-            * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
-            A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
-          </p>
-          {/* Administration section - placeholder for removed button */}
-          <div className="mt-4 border-t border-white/10 pt-4 text-[10px] text-white/50">
-            Cálculo tributário disponível abaixo.
+          <div className="text-right bg-white/20 backdrop-blur-md p-3 rounded-2xl border border-white/20">
+            <p className="text-[9px] font-black uppercase tracking-wider opacity-90 mb-1">Meta Diária Sugerida</p>
+            <p className="text-xl font-black">{formatCurrency(dailyGoalData.target)}</p>
+            <p className="text-[8px] font-bold opacity-70 mt-1">Custo + 10% Lucro</p>
           </div>
         </div>
-      )}
+        <p className="text-[10px] font-medium opacity-70 leading-tight">
+          * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
+          A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
+        </p>
+        <div className="mt-4 border-t border-white/10 pt-4 text-[10px] text-white/50">
+          Cálculo tributário disponível abaixo.
+        </div>
+      </div>
 
       <AnimatePresence>
         {modalType && (
