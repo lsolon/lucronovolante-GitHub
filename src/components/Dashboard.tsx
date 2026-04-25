@@ -215,9 +215,10 @@ export default function Dashboard({
     const target = (dailyFixed + todayExpenses) * 1.1;
     
     const remainingToday = Math.max(0, target - totals.todayEarnings);
-    const percentToday = Math.min(100, (totals.todayEarnings / target) * 100);
+    const percentToday = (totals.todayEarnings / target) * 100;
+    const todayProfit = totals.todayEarnings - totals.todayExpenses;
     
-    return { target, remainingToday, percentToday, dailyFixed, todayExpenses };
+    return { target, remainingToday, percentToday, dailyFixed, todayExpenses, todayProfit };
   }, [totals.totalFixedCosts, totals.todayExpenses, totals.todayEarnings]);
 
   const handleShare = async () => {
@@ -308,17 +309,32 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="grid grid-cols-2 gap-6 mb-4">
             <div>
               <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Ganhos de Hoje</p>
-              <p className="text-3xl font-black text-white tracking-tighter">
+              <p className="text-2xl font-black text-white tracking-tighter">
                 {formatCurrency(totals.todayEarnings)}
               </p>
             </div>
             <div className="text-right">
               <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Meta Sugerida</p>
-              <p className="text-3xl font-black text-blue-300 tracking-tighter">
+              <p className="text-2xl font-black text-blue-300 tracking-tighter">
                 {formatCurrency(dailyGoalData.target)}
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-6 p-4 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.15em] mb-0.5">Lucro do Dia</p>
+              <p className="text-2xl font-black text-emerald-400 tracking-tighter leading-none">
+                {formatCurrency(dailyGoalData.todayProfit)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-0.5 opacity-70">Gasto Real</p>
+              <p className="text-lg font-black text-white leading-none">
+                {formatCurrency(totals.todayExpenses)}
               </p>
             </div>
           </div>
@@ -327,7 +343,7 @@ export default function Dashboard({
             <div className="h-4 bg-white/5 rounded-full overflow-hidden border border-white/10 p-0.5">
               <motion.div 
                 initial={{ width: 0 }}
-                animate={{ width: `${dailyGoalData.percentToday}%` }}
+                animate={{ width: `${Math.min(100, dailyGoalData.percentToday)}%` }}
                 className={cn(
                   "h-full rounded-full shadow-sm transition-all duration-1000",
                   dailyGoalData.percentToday >= 100 ? "bg-emerald-400" : "bg-blue-400"
