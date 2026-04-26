@@ -12,7 +12,9 @@ import {
   Target,
   ArrowRight,
   AlertCircle,
-  Share2
+  Share2,
+  Smartphone,
+  Download
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -242,6 +244,11 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
               icon={<Shield className="text-rose-600" />}
               title="Dados na Nuvem"
               description="Nunca perca seus registros. Seus dados são salvos com segurança e acessíveis de qualquer lugar."
+            />
+            <FeatureCard 
+              icon={<Smartphone className="text-blue-600" />}
+              title="Instale no Celular"
+              description="Use como um aplicativo nativo. Baixe direto do navegador para sua tela de início."
             />
           </div>
         </div>

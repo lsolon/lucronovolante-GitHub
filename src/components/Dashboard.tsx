@@ -20,6 +20,7 @@ import {
 import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
+import PWAInstallButton from './PWAInstallButton';
 
 interface DashboardProps {
   totals: {
@@ -371,6 +372,8 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      <PWAInstallButton />
 
       {/* Status Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">

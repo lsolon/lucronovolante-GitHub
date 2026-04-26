@@ -69,14 +69,17 @@ export async function getAllUsers(): Promise<any[]> {
     const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
     
     return querySnapshot.docs
-      .map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        lastSeen: doc.data().lastSeen instanceof Timestamp 
-          ? doc.data().lastSeen.toDate().toISOString() 
-          : doc.data().lastSeen
-      }))
-      .filter(user => user.email && !excludedEmails.includes(user.email));
+      .map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          lastSeen: data.lastSeen instanceof Timestamp 
+            ? data.lastSeen.toDate().toISOString() 
+            : data.lastSeen
+        };
+      })
+      .filter((user: any) => user.email && !excludedEmails.includes(user.email));
   } catch (error) {
     console.error('Error getting all users:', error);
     return [];

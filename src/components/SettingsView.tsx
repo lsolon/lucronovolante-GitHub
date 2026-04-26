@@ -43,6 +43,8 @@ import { addBacklogItem, getBacklogItems, deleteBacklogItem, toggleBacklogItemSt
 import { BacklogItem } from '../types';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+import PWAInstallButton from './PWAInstallButton';
+
 interface SettingsViewProps {
   fixedCosts: FixedCost[];
   onUpdateFixedCosts: (costs: FixedCost[]) => void;
@@ -573,6 +575,8 @@ export default function SettingsView({
 
       {activeSection === 'general' && (
         <div className="space-y-4">
+          <PWAInstallButton />
+          
           <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-blue-50 rounded-xl">
