@@ -174,15 +174,28 @@ export default function App() {
     }
   }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
 
-  // Auth Listener
+  // Initialize GA once
   useEffect(() => {
-    // Initialize Google Analytics
-    const gaId = import.meta.env.VITE_GA_ID;
+    const gaId = import.meta.env.VITE_GA_ID || 'G-H0GPB9JDNC';
     if (gaId) {
       ReactGA.initialize(gaId);
       ReactGA.send({ hitType: "pageview", page: window.location.pathname });
     }
+  }, []);
 
+  // Track Tab Changes
+  useEffect(() => {
+    const gaId = import.meta.env.VITE_GA_ID || 'G-H0GPB9JDNC';
+    if (gaId && isAuthReady) {
+      ReactGA.send({ 
+        hitType: "pageview", 
+        page: user ? `/${activeTab}` : '/landing',
+        title: user ? (activeTab.charAt(0).toUpperCase() + activeTab.slice(1)) : 'Home'
+      });
+    }
+  }, [activeTab, user, isAuthReady]);
+  // Auth Listener
+  useEffect(() => {
     // Check for redirect result first
     getRedirectResult(auth).catch(error => {
       console.error("Erro no resultado do redirect:", error);
