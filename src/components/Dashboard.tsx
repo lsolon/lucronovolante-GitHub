@@ -320,7 +320,7 @@ export default function Dashboard({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-4">
             <div>
               <p className="text-[10px] font-black text-blue-200 uppercase tracking-[0.15em] mb-1 opacity-70">Ganhos de Hoje</p>
               <p className="text-2xl font-black text-white tracking-tighter">
@@ -432,7 +432,7 @@ export default function Dashboard({
           <ChevronRight size={20} className="text-white/30" />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className={cn(
             "p-4 rounded-2xl border flex flex-col gap-1",
             maintenanceSummary.critical > 0 ? "bg-rose-500/20 border-rose-500/30" : "bg-white/5 border-white/5"
@@ -511,7 +511,7 @@ export default function Dashboard({
       )}
 
       {/* Main Stats Grid */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           title="Ganhos Brutos" 
           value={formatCurrency(totals.earnings)} 
