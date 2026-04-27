@@ -11,7 +11,9 @@ import {
   ChevronLeft,
   X,
   Wallet,
-  LayoutDashboard
+  LayoutDashboard,
+  Calculator,
+  FileText
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -25,6 +27,12 @@ const steps = [
     description: "A ferramenta definitiva para você profissionalizar sua gestão financeira nas ruas. Vamos te mostrar como tirar o máximo proveito do app.",
     icon: <Car className="text-blue-600 size-12" />,
     color: "bg-blue-50"
+  },
+  {
+    title: "Facilite seu Imposto de Renda",
+    description: "Ao registrar tudo aqui, você gera um histórico completo para sua declaração anual. Saiba exatamente quanto foi ganho e descontado, evitando dores de cabeça com o Leão.",
+    icon: <Calculator className="text-indigo-600 size-12" />,
+    color: "bg-indigo-50"
   },
   {
     title: "Meta Diária Inteligente",

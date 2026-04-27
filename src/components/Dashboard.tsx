@@ -36,6 +36,7 @@ interface DashboardProps {
     paidFixedCostsDetails: { item: string; valor: number; data: string }[];
     paidFixedCostsSum: number;
     unpaidFixedCosts: string[];
+    fixedCostPaymentIds: string[];
   };
   fixedCosts: FixedCost[];
   nextOilChange: number | null;
@@ -78,8 +79,17 @@ export default function Dashboard({
     if (!modalType) return [];
     const filtered = entries.filter(e => {
         const isCurrentMonth = e.data.startsWith(currentMonthAlt) || e.data.startsWith(currentMonthStr);
-        return isCurrentMonth && 
-        (modalType === 'ganhos' ? e.tipo === 'Ganhos' : e.tipo === 'Despesa');
+        const isExpense = e.tipo === 'Despesa';
+        const isEarning = e.tipo === 'Ganhos';
+        
+        if (modalType === 'ganhos') return isCurrentMonth && isEarning;
+        
+        // For 'despesas', filter out entries that are identified as fixed cost payments
+        if (modalType === 'despesas') {
+            return isCurrentMonth && isExpense && !totals.fixedCostPaymentIds.includes(e.id);
+        }
+        
+        return false;
     });
     
     const grouped = filtered.reduce((acc, curr) => {
@@ -112,16 +122,16 @@ export default function Dashboard({
     // Custo Médio = (Custos Fixos Pendentes + Despesas de Rua) / dias trabalhados
     const totalFixed = totals.totalFixedCosts || 0;
     const paidFixed = totals.paidFixedCostsSum || 0;
-    const expenses = totals.expenses || 0;
+    const dailyExpenses = totals.dailyExpenses || 0;
     
     const remainingFixedCosts = Math.max(0, totalFixed - paidFixed);
-    const totalObligations = remainingFixedCosts + expenses;
+    const totalObligations = remainingFixedCosts + dailyExpenses;
     
     return {
       burden: workedDays > 0 ? totalObligations / workedDays : 0,
       days: workedDays
     };
-  }, [entries, fixedCosts]);
+  }, [entries, fixedCosts, totals]);
 
   const activeFixedCosts = useMemo(() => {
     return fixedCosts.filter(fc => {
@@ -511,7 +521,7 @@ export default function Dashboard({
         />
         <StatCard 
           title="Despesas Rua" 
-          value={formatCurrency(totals.expenses)} 
+          value={formatCurrency(totals.dailyExpenses)} 
           icon={<TrendingDown className="text-rose-400" />}
           color="rose"
           onClick={() => setModalType('despesas')}
@@ -587,9 +597,9 @@ export default function Dashboard({
             <div className="mt-3 p-3 bg-white/5 rounded-xl text-[10px] text-blue-100 font-mono">
               <p>Detalhes do cálculo:</p>
               <p>Custos Fixos Pendentes: {formatCurrency(Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0)))}</p>
-              <p>+ Despesas de Rua: {formatCurrency(totals.expenses || 0)}</p>
+              <p>+ Despesas de Rua: {formatCurrency(totals.dailyExpenses || 0)}</p>
               <p>-------------------------</p>
-              <p>= Total: {formatCurrency((Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0))) + (totals.expenses || 0))}</p>
+              <p>= Total: {formatCurrency((Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0))) + (totals.dailyExpenses || 0))}</p>
               <p>÷ {dailyWorkBurden.days} dias</p>
             </div>
           )}

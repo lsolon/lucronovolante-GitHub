@@ -466,18 +466,24 @@ export default function App() {
     const totalFixedCosts = activeFixedCosts.reduce((acc, curr) => acc + curr.valorMensal, 0);
     
     // Identify which expenses are payments of fixed costs
+    const fixedCostPaymentIds: string[] = [];
     const fixedCostPayments = currentMonthEntries.filter(e => {
       if (e.tipo !== 'Despesa') return false;
       const cat = state.categories.find(c => c.id === e.categoriaId);
       const categoryName = cat?.nome.toLowerCase().trim() || '';
       const obs = e.obs?.toLowerCase().trim() || '';
       
-      return activeFixedCosts.some(fc => {
+      const isFixed = activeFixedCosts.some(fc => {
         const fcItem = fc.item.toLowerCase().trim();
         // Match if category name is in fixed cost item name or vice versa
         // Or if observation contains the fixed cost item name
         return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
       });
+
+      if (isFixed && e.id) {
+        fixedCostPaymentIds.push(e.id);
+      }
+      return isFixed;
     });
 
     const paidFixedCostsSum = fixedCostPayments.reduce((acc, curr) => acc + curr.valor, 0);
@@ -550,7 +556,7 @@ export default function App() {
         return (fc.valorMensal - paidAmount) > TOLERANCE;
     }).map(fc => fc.item);
     
-    return { earnings, expenses, totalFixedCosts, paidFixedCostsSum, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts };
+    return { earnings, expenses, totalFixedCosts, paidFixedCostsSum, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts, fixedCostPaymentIds };
   }, [currentMonthEntries, state.fixedCosts, state.categories]);
 
   const nextOilChange = useMemo(() => {
