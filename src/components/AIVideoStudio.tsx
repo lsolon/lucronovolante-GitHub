@@ -24,7 +24,7 @@ import { GoogleGenAI } from "@google/genai";
 import { cn } from '../lib/utils';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, setDoc, writeBatch, collection, arrayUnion, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch, collection, addDoc } from 'firebase/firestore';
 import { AICampaign } from '../types';
 
 interface Message {
@@ -224,10 +224,8 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
     };
 
     try {
-      const userDocRef = doc(db, 'users', auth.currentUser.uid);
-      await updateDoc(userDocRef, { 
-        aiCampaigns: arrayUnion(newCampaign)
-      });
+      const campaignsCollectionRef = collection(db, 'users', auth.currentUser.uid, 'campaigns');
+      await addDoc(campaignsCollectionRef, newCampaign);
       alert('Campanha salva com sucesso!');
     } catch (error) {
       console.error(error);

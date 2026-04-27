@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Share2, FileText, ChevronLeft, Trash2 } from 'lucide-react';
 import { auth, db } from '../firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { AICampaign } from '../types';
 
 export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
@@ -13,11 +13,11 @@ export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
     const fetchCampaigns = async () => {
       if (!auth.currentUser) return;
       try {
-        const userDocRef = doc(db, 'users', auth.currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setCampaigns(userDoc.data().aiCampaigns || []);
-        }
+        const campaignsCollectionRef = collection(db, 'users', auth.currentUser.uid, 'campaigns');
+        const q = query(campaignsCollectionRef, orderBy('createdAt', 'desc'));
+        const querySnapshot = await getDocs(q);
+        const campaignsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AICampaign));
+        setCampaigns(campaignsData);
       } catch (error) {
         console.error("Erro ao buscar campanhas:", error);
       } finally {
@@ -30,12 +30,12 @@ export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
   const deleteCampaign = async (campaignId: string) => {
     if (!auth.currentUser || !confirm('Deseja excluir esta campanha?')) return;
     try {
-      const userDocRef = doc(db, 'users', auth.currentUser.uid);
-      const filteredCampaigns = campaigns.filter(c => c.id !== campaignId);
-      await updateDoc(userDocRef, { aiCampaigns: filteredCampaigns });
-      setCampaigns(filteredCampaigns);
+      const campaignDocRef = doc(db, 'users', auth.currentUser.uid, 'campaigns', campaignId);
+      await deleteDoc(campaignDocRef);
+      setCampaigns(prev => prev.filter(c => c.id !== campaignId));
     } catch (error) {
       console.error("Erro ao deletar:", error);
+      alert("Erro ao excluir campanha.");
     }
   };
 
