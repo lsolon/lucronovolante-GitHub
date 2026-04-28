@@ -11,9 +11,66 @@ async function startServer() {
   const PORT = 3000;
   console.log(`Starting server in ${process.env.NODE_ENV || 'development'} mode`);
 
+  // Parse JSON bodies
+  app.use(express.json());
+
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", env: process.env.NODE_ENV });
+  });
+
+  app.post("/api/gemini", async (req, res) => {
+    try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY não configurada no servidor backend." });
+      }
+
+      const { GoogleGenAI } = await import("@google/genai");
+      const ai = new GoogleGenAI({ apiKey });
+
+      const { isImageRequest, text, systemPrompt, history } = req.body;
+
+      if (isImageRequest) {
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: [{ parts: [{ text: `${systemPrompt}\n\nUsuário pediu: ${text}\n\nSiga estas DUAS instruções:\n1. GERE UMA IMAGEM de divulgação profissional para o LucroNoVolante baseada nesse pedido. Foco total em uma composição visual limpa, sem texto ou logotipo na imagem.\n2. GERE UM TEXTO ATRATIVO PARA PUBLICAR ABAIXO DA IMAGEM, em uma seção clara chamada "LEGENDA PARA PUBLICAR:".` }] }],
+          config: {
+            imageConfig: {
+              aspectRatio: "1:1",
+            }
+          }
+        });
+
+        let imageUrl = '';
+        let modelText = '';
+
+        for (const part of response.candidates?.[0]?.content?.parts || []) {
+          if (part.inlineData) {
+            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          } else if (part.text) {
+            modelText += part.text;
+          }
+        }
+        return res.json({ text: modelText, image: imageUrl });
+      } else {
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            ...(history || []),
+            { role: 'user', parts: [{ text }] }
+          ],
+          config: {
+            systemInstruction: systemPrompt,
+            temperature: 0.7,
+          }
+        });
+        return res.json({ text: response.text });
+      }
+    } catch (error: any) {
+      console.error("Gemini API Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate AI content" });
+    }
   });
 
   app.get("/api/fetch-url", async (req, res) => {

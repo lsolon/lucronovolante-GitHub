@@ -1124,7 +1124,7 @@ export default function App() {
             onStartWithExamples={handleStartWithExamples}
           />
         )}
-        {isAIVideoStudioOpen && (
+        {isAdmin && isAIVideoStudioOpen && (
           <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         {isEntryModalOpen && (
