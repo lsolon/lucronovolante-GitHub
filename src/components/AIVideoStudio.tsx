@@ -24,7 +24,7 @@ import { GoogleGenAI } from "@google/genai";
 import { cn } from '../lib/utils';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, writeBatch, collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc, writeBatch, collection, arrayUnion, updateDoc } from 'firebase/firestore';
 import { AICampaign } from '../types';
 
 interface Message {
@@ -118,6 +118,12 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
     setIsLoading(true);
 
     try {
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("GEMINI_API_KEY não configurada. Por favor, configure a chave de API.");
+      }
+      const ai = new GoogleGenAI({ apiKey });
+      
       const isImageRequest = text.toLowerCase().includes('imagem') || 
                             text.toLowerCase().includes('foto') || 
                             text.toLowerCase().includes('desenhe');
@@ -135,36 +141,53 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
         }]);
         setIsLoading(false);
         return;
+      } else if (isImageRequest) {
+        // Image Generation
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash-image",
+          contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nUsuário pediu: ${text}\n\nSiga estas DUAS instruções:\n1. GERE UMA IMAGEM de divulgação profissional para o LucroNoVolante baseada nesse pedido. Foco total em uma composição visual limpa, sem texto ou logotipo na imagem.\n2. GERE UM TEXTO ATRATIVO PARA PUBLICAR ABAIXO DA IMAGEM, em uma seção clara chamada "LEGENDA PARA PUBLICAR:".` }] }],
+          config: {
+            imageConfig: {
+              aspectRatio: "1:1",
+            }
+          }
+        });
+
+        let imageUrl = '';
+        let modelText = '';
+
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+          } else if (part.text) {
+            modelText += part.text;
+          }
+        }
+
+        if (!modelText) modelText = "Aqui está a imagem de divulgação que criei para você!";
+        setMessages(prev => [...prev, { role: 'model', text: modelText, image: imageUrl }]);
+      } else {
+        // Text Generation (Chat)
+        const history = messages.map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }));
+
+        const response = await ai.models.generateContent({
+          model: "gemini-3-flash-preview",
+          contents: [
+            ...history,
+            { role: 'user', parts: [{ text }] }
+          ],
+          config: {
+            systemInstruction: SYSTEM_PROMPT,
+            temperature: 0.7,
+          }
+        });
+
+        const modelText = response.text || "Desculpe, não consegui gerar uma resposta agora.";
+        setMessages(prev => [...prev, { role: 'model', text: modelText }]);
       }
-
-      const history = messages.map(m => ({
-        role: m.role === 'user' ? 'user' : 'model',
-        parts: [{ text: m.text }]
-      }));
-
-      const res = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isImageRequest,
-          text,
-          systemPrompt: SYSTEM_PROMPT,
-          history
-        })
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Erro na API do Gemini");
-      }
-
-      setMessages(prev => [...prev, { 
-        role: 'model', 
-        text: data.text || "Aqui está o resultado vindo da IA!", 
-        image: data.image 
-      }]);
-      
     } catch (error: any) {
       console.error("Erro no Gemini:", error);
       let errorMessage = "Ocorreu um erro ao conectar com a inteligência artificial. Verifique sua conexão ou tente novamente mais tarde.";
@@ -173,8 +196,8 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
         errorMessage = "A chave de API (GEMINI_API_KEY) não foi configurada. Por favor, adicione-a nas configurações do projeto.";
       } else if (error?.message?.includes("API key not valid")) {
         errorMessage = "A chave de API do Gemini é inválida. Verifique se você a copiou corretamente.";
-      } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
-        errorMessage = "Você atingiu o limite de uso da sua chave de API do Gemini! Como as contas gratuitas possuem um limite por minuto, aguarde alguns instantes e tente novamente.";
+      } else if (error?.message?.includes("quota")) {
+        errorMessage = "Limite de uso da IA atingido. Tente novamente em alguns instantes.";
       } else if (error?.message) {
         // Show the actual error message if it's descriptive
         errorMessage = `Erro na IA: ${error.message}`;
@@ -201,8 +224,10 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
     };
 
     try {
-      const campaignsCollectionRef = collection(db, 'users', auth.currentUser.uid, 'campaigns');
-      await addDoc(campaignsCollectionRef, newCampaign);
+      const userDocRef = doc(db, 'users', auth.currentUser.uid);
+      await updateDoc(userDocRef, { 
+        aiCampaigns: arrayUnion(newCampaign)
+      });
       alert('Campanha salva com sucesso!');
     } catch (error) {
       console.error(error);

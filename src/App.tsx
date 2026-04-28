@@ -80,7 +80,7 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.5';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -280,7 +280,8 @@ export default function App() {
           trialStartDate: data.trialStartDate,
           appSheetMapping: data.appSheetMapping,
           hasSeenTutorial: data.hasSeenTutorial ?? false,
-          tutorialOptOut: data.tutorialOptOut ?? false
+          tutorialOptOut: data.tutorialOptOut ?? false,
+          aiCampaigns: data.aiCampaigns || []
         }));
       } else {
         // Initialize user doc if it doesn't exist
@@ -893,7 +894,7 @@ export default function App() {
 
       {/* Header */}
       <header className="bg-[#0047AB]/80 backdrop-blur-md text-white p-4 sticky top-0 z-30 border-b border-white/10">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex justify-between items-center">
+        <div className="max-w-md mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
             <div className="bg-white p-1.5 rounded-lg shadow-lg shadow-blue-900/20">
               <Car className="text-[#0047AB] size-6" />
@@ -927,7 +928,7 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto p-4">
+      <main className="max-w-md mx-auto p-4">
         <AnimatePresence mode="wait">
           {activeTab === 'dashboard' && (
             <motion.div
@@ -1073,7 +1074,7 @@ export default function App() {
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-2 z-30">
-        <div className="max-w-md md:max-w-2xl lg:max-w-4xl mx-auto flex justify-around items-center">
+        <div className="max-w-md mx-auto flex justify-around items-center">
           <NavButton 
             active={activeTab === 'dashboard'} 
             onClick={() => setActiveTab('dashboard')} 
@@ -1124,7 +1125,7 @@ export default function App() {
             onStartWithExamples={handleStartWithExamples}
           />
         )}
-        {isAdmin && isAIVideoStudioOpen && (
+        {isAIVideoStudioOpen && (
           <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         {isEntryModalOpen && (

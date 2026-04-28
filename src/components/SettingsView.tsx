@@ -1913,7 +1913,6 @@ function MarketingPanel() {
 
 function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, onUpdateAppConfig?: (config: AppConfig) => void }) {
   const [stats, setStats] = useState<GlobalStats | null>(null);
-  const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -1936,24 +1935,8 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [globalData, allUsers] = await Promise.all([
-          getGlobalStats(),
-          getAllUsers()
-        ]);
-        
-        setStats(globalData);
-        
-        // Count users active in the last 48h
-        const fortyEightHoursAgo = new Date();
-        fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
-        
-        const activeCount = allUsers.filter(user => {
-          if (!user.lastSeen) return false;
-          const lastSeenDate = new Date(user.lastSeen);
-          return lastSeenDate >= fortyEightHoursAgo;
-        }).length;
-        
-        setActiveUsersCount(activeCount);
+        const data = await getGlobalStats();
+        setStats(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar estatísticas');
       } finally {
@@ -2144,14 +2127,10 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Acessos</p>
             <p className="text-2xl font-black text-blue-600">{stats?.totalVisits || 0}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ativos (48h)</p>
-            <p className="text-2xl font-black text-emerald-600">{activeUsersCount}</p>
           </div>
         </div>
 
