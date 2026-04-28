@@ -163,36 +163,36 @@ export default function App() {
     }
 
     // Only reload if the remote version changes mid-session or across sessions
-    if (currentStoredVersion !== remoteVersion && !adminMode) {
-      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
-      localStorage.setItem('remote_published_version', remoteVersion);
-      
-      const reloadWithClearedCache = async () => {
-        try {
-          if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            for (let registration of registrations) {
-              await registration.unregister();
-            }
-          }
-          if ('caches' in window) {
-            const keys = await caches.keys();
-            for (let key of keys) {
-              await caches.delete(key);
-            }
-          }
-        } catch (e) {
-             console.error("Erro ao limpar cache:", e);
-        } finally {
-          window.location.reload();
-        }
-      };
-      
-      reloadWithClearedCache();
-    } else {
+    // if (currentStoredVersion !== remoteVersion && !adminMode) {
+    //   console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+    //   localStorage.setItem('remote_published_version', remoteVersion);
+    //   
+    //   const reloadWithClearedCache = async () => {
+    //     try {
+    //       if ('serviceWorker' in navigator) {
+    //         const registrations = await navigator.serviceWorker.getRegistrations();
+    //         for (let registration of registrations) {
+    //           await registration.unregister();
+    //         }
+    //       }
+    //       if ('caches' in window) {
+    //         const keys = await caches.keys();
+    //         for (let key of keys) {
+    //           await caches.delete(key);
+    //         }
+    //       }
+    //     } catch (e) {
+    //          console.error("Erro ao limpar cache:", e);
+    //     } finally {
+    //       window.location.reload();
+    //     }
+    //   };
+    //   
+    //   reloadWithClearedCache();
+    // } else {
       // Just track it silently
       localStorage.setItem('remote_published_version', remoteVersion);
-    }
+    // }
   }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user, appStartTime]);
 
   // Initialize GA once
