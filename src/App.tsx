@@ -80,7 +80,7 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.7';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -145,6 +145,8 @@ export default function App() {
     }
   }, []);
 
+  const [appStartTime] = useState(Date.now());
+
   // Force update if remote publishedVersion changes
   useEffect(() => {
     // Only check for remote updates if we have successfully loaded the config from Firebase
@@ -152,27 +154,46 @@ export default function App() {
     
     const adminMode = user?.email === "leandrosolon@gmail.com";
     const remoteVersion = state.appConfig.publishedVersion;
-    const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
+    const currentStoredVersion = localStorage.getItem('remote_published_version');
     
+    // Default the stored version if it doesn't exist yet
+    if (!currentStoredVersion) {
+      localStorage.setItem('remote_published_version', remoteVersion);
+      return;
+    }
+
     // Only reload if the remote version changes mid-session or across sessions
     if (currentStoredVersion !== remoteVersion && !adminMode) {
       console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
       localStorage.setItem('remote_published_version', remoteVersion);
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (let registration of registrations) {
-            registration.unregister();
+      
+      const reloadWithClearedCache = async () => {
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            for (let registration of registrations) {
+              await registration.unregister();
+            }
           }
+          if ('caches' in window) {
+            const keys = await caches.keys();
+            for (let key of keys) {
+              await caches.delete(key);
+            }
+          }
+        } catch (e) {
+             console.error("Erro ao limpar cache:", e);
+        } finally {
           window.location.reload();
-        });
-      } else {
-        window.location.reload();
-      }
+        }
+      };
+      
+      reloadWithClearedCache();
     } else {
       // Just track it silently
       localStorage.setItem('remote_published_version', remoteVersion);
     }
-  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
+  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user, appStartTime]);
 
   // Initialize GA once
   useEffect(() => {

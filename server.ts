@@ -16,7 +16,7 @@ async function startServer() {
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV });
+    res.json({ status: "ok", env: process.env.NODE_ENV, keys: Object.keys(process.env).filter(k => k.includes('GEMINI')) });
   });
 
   app.post("/api/gemini", async (req, res) => {
@@ -29,9 +29,44 @@ async function startServer() {
       const { GoogleGenAI } = await import("@google/genai");
       const ai = new GoogleGenAI({ apiKey });
 
-      const { isImageRequest, text, systemPrompt, history } = req.body;
+      const { isImageRequest, text, systemPrompt, history, isStructuredDataRequest, imageBytes } = req.body;
 
-      if (isImageRequest) {
+      if (isStructuredDataRequest) {
+        const { Type } = await import("@google/genai");
+        const contents: any[] = [];
+        if (imageBytes) {
+          contents.push({
+            parts: [
+              { text },
+              { inlineData: { mimeType: "image/jpeg", data: imageBytes } }
+            ]
+          });
+        } else {
+          contents.push({ parts: [{ text }] });
+        }
+
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                valorTotal: { type: Type.NUMBER },
+                valorUnitario: { type: Type.NUMBER },
+                quantidade: { type: Type.NUMBER },
+                combustivel: { type: Type.STRING },
+                posto: { type: Type.STRING },
+                data: { type: Type.STRING }
+              },
+              required: ["valorTotal", "valorUnitario", "quantidade", "combustivel", "posto", "data"]
+            }
+          }
+        });
+        
+        return res.json({ text: response.text });
+      } else if (isImageRequest) {
         try {
           // Generate caption
           const textResponse = await ai.models.generateContent({

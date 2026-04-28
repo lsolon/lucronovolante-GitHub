@@ -108,6 +108,16 @@ export default function SettingsView({
   const [localMapping, setLocalMapping] = useState<Partial<AppSheetMapping>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [isGeminiConfigured, setIsGeminiConfigured] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then(r => r.json())
+      .then(data => {
+        setIsGeminiConfigured(data.keys.includes('GEMINI_API_KEY'));
+      });
+  }, []);
+
   const currentMapping: AppSheetMapping = {
     data: localMapping.data ?? appSheetMapping?.data ?? '',
     tipo: localMapping.tipo ?? appSheetMapping?.tipo ?? '',
@@ -684,26 +694,26 @@ export default function SettingsView({
               
               <div className={cn(
                 "p-4 rounded-2xl border flex items-center justify-between",
-                process.env.GEMINI_API_KEY ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
+                isGeminiConfigured ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
               )}>
                 <div className="flex items-center gap-3">
-                  {process.env.GEMINI_API_KEY ? (
+                  {isGeminiConfigured ? (
                     <CheckCircle2 className="text-emerald-600" size={20} />
                   ) : (
                     <AlertCircle className="text-rose-600" size={20} />
                   )}
                   <div>
-                    <p className={cn("text-sm font-bold", process.env.GEMINI_API_KEY ? "text-emerald-700" : "text-rose-700")}>
-                      {process.env.GEMINI_API_KEY ? "IA Configurada" : "IA não configurada"}
+                    <p className={cn("text-sm font-bold", isGeminiConfigured ? "text-emerald-700" : "text-rose-700")}>
+                      {isGeminiConfigured ? "IA Configurada" : "IA não configurada"}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      {process.env.GEMINI_API_KEY 
+                      {isGeminiConfigured 
                         ? "Recursos de leitura automática de notas estão ativos." 
                         : "Adicione a GEMINI_API_KEY nos Secrets para ativar a leitura de notas."}
                     </p>
                   </div>
                 </div>
-                {!process.env.GEMINI_API_KEY && (
+                {!isGeminiConfigured && (
                   <div className="text-[10px] font-black text-rose-600 uppercase bg-white px-2 py-1 rounded-lg border border-rose-100">
                     Ação Necessária
                   </div>
@@ -1219,7 +1229,8 @@ export default function SettingsView({
       {activeSection === 'admin' && isAdmin && (
         <AdminPanel 
           appConfig={appConfig} 
-          onUpdateAppConfig={onUpdateAppConfig} 
+          onUpdateAppConfig={onUpdateAppConfig}
+          isGeminiConfigured={isGeminiConfigured}
         />
       )}
 
@@ -1911,7 +1922,7 @@ function MarketingPanel() {
   );
 }
 
-function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, onUpdateAppConfig?: (config: AppConfig) => void }) {
+function AdminPanel({ appConfig, onUpdateAppConfig, isGeminiConfigured }: { appConfig?: AppConfig, onUpdateAppConfig?: (config: AppConfig) => void, isGeminiConfigured: boolean | null }) {
   const [stats, setStats] = useState<GlobalStats | null>(null);
   const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
