@@ -32,30 +32,47 @@ async function startServer() {
       const { isImageRequest, text, systemPrompt, history } = req.body;
 
       if (isImageRequest) {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash-image",
-          contents: [{ parts: [{ text: `${systemPrompt}\n\nUsuário pediu: ${text}\n\nSiga estas DUAS instruções:\n1. GERE UMA IMAGEM de divulgação profissional para o LucroNoVolante baseada nesse pedido. Foco total em uma composição visual limpa, sem texto ou logotipo na imagem.\n2. GERE UM TEXTO ATRATIVO PARA PUBLICAR ABAIXO DA IMAGEM, em uma seção clara chamada "LEGENDA PARA PUBLICAR:".` }] }],
-          config: {
-            imageConfig: {
-              aspectRatio: "1:1",
+        try {
+          // Generate caption
+          const textResponse = await ai.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: [{ parts: [{ text: `Gere UM TEXTO ATRATIVO PARA PUBLICAR nas redes sociais (com emojis) sobre este pedido: "${text}". NÃO gere a imagem, apenas a legenda. Seja direto e motivador para motoristas de app.` }] }],
+          });
+          
+          let modelText = textResponse.text || "Aqui está a legenda para a sua imagem!";
+
+          // Generate image
+          let imageUrl = '';
+          try {
+            const imageResponse = await ai.models.generateImages({
+              model: 'imagen-3.0-generate-002',
+              prompt: `A high quality, clean, professional advertising photo for a rideshare driver app. User request: ${text}. No text, no words, no letters, no logos on the image. Clear and well-lit.`,
+              config: {
+                numberOfImages: 1,
+                outputMimeType: 'image/jpeg',
+                aspectRatio: '1:1',
+              }
+            });
+
+            if (imageResponse.generatedImages?.[0]?.image?.imageBytes) {
+              imageUrl = `data:image/jpeg;base64,${imageResponse.generatedImages[0].image.imageBytes}`;
+            }
+          } catch (imgError: any) {
+            console.error("Imagen API Error:", imgError);
+            if (imgError.message?.includes("not available") || imgError.message?.includes("not found") || imgError.message?.includes("quota") || imgError.message?.includes("429")) {
+               modelText += "\n\n(Obs: O limite de uso para geração de imagens foi atingido no momento ou o recurso está indisponível na sua conta gratuita. Tente novamente mais tarde.)";
+            } else {
+               throw imgError; // Let main catch block handle quota limit and show the error 
             }
           }
-        });
 
-        let imageUrl = '';
-        let modelText = '';
-
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-          } else if (part.text) {
-            modelText += part.text;
-          }
+          return res.json({ text: modelText, image: imageUrl });
+        } catch (error: any) {
+             throw error;
         }
-        return res.json({ text: modelText, image: imageUrl });
       } else {
         const response = await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-1.5-flash",
           contents: [
             ...(history || []),
             { role: 'user', parts: [{ text }] }

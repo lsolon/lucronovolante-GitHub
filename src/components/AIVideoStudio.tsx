@@ -173,8 +173,8 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
         errorMessage = "A chave de API (GEMINI_API_KEY) não foi configurada. Por favor, adicione-a nas configurações do projeto.";
       } else if (error?.message?.includes("API key not valid")) {
         errorMessage = "A chave de API do Gemini é inválida. Verifique se você a copiou corretamente.";
-      } else if (error?.message?.includes("quota")) {
-        errorMessage = "Limite de uso da IA atingido. Tente novamente em alguns instantes.";
+      } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
+        errorMessage = "Você atingiu o limite de uso da sua chave de API do Gemini! Como as contas gratuitas possuem um limite por minuto, aguarde alguns instantes e tente novamente.";
       } else if (error?.message) {
         // Show the actual error message if it's descriptive
         errorMessage = `Erro na IA: ${error.message}`;
