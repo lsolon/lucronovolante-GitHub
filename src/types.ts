@@ -109,6 +109,5 @@ export interface AppState {
   hasContributed?: boolean;
   lastSeen?: string;
   appConfig?: AppConfig;
-  aiCampaigns?: AICampaign[];
   isConfigLoaded?: boolean;
 }
