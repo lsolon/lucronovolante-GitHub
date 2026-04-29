@@ -136,30 +136,37 @@ export default function App() {
   // Force update if remote publishedVersion changes
   useEffect(() => {
     // Only check for remote updates if we have successfully loaded the config from Firebase
+    // AND it's not the initial load where local and remote might briefly mismatch
     if (!state.isConfigLoaded || !state.appConfig?.publishedVersion) return;
     
-    const adminMode = user?.email === "leandrosolon@gmail.com";
-    const remoteVersion = state.appConfig.publishedVersion;
-    const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
-    
-    // Only reload if the remote version changes mid-session or across sessions
-    if (currentStoredVersion !== remoteVersion && !adminMode) {
-      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
-      localStorage.setItem('remote_published_version', remoteVersion);
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (let registration of registrations) {
-            registration.unregister();
+    // Add a small delay to allow potential local storage and state to sync 
+    // to prevent immediate loop on initial load
+    const timer = setTimeout(() => {
+        const adminMode = user?.email === "leandrosolon@gmail.com";
+        const remoteVersion = state.appConfig.publishedVersion;
+        const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
+        
+        // Only reload if the remote version changes mid-session or across sessions
+        if (currentStoredVersion !== remoteVersion && !adminMode) {
+          console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+          localStorage.setItem('remote_published_version', remoteVersion);
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+              for (let registration of registrations) {
+                registration.unregister();
+              }
+              window.location.reload();
+            });
+          } else {
+            window.location.reload();
           }
-          window.location.reload();
-        });
-      } else {
-        window.location.reload();
-      }
-    } else {
-      // Just track it silently
-      localStorage.setItem('remote_published_version', remoteVersion);
-    }
+        } else {
+          // Just track it silently
+          localStorage.setItem('remote_published_version', remoteVersion);
+        }
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
 
   // Initialize GA once
