@@ -81,7 +81,7 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 
-const APP_VERSION = '1.1.5';
+const APP_VERSION = '1.1.6';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -111,73 +111,18 @@ export default function App() {
     isConfigLoaded: false
   });
 
-  // Force update if hardcoded app version changes
-  const updateInitiated = useRef(false);
-
   useEffect(() => {
-    const lastVersion = localStorage.getItem('app_version');
-    console.log(`Checking local app version: ${lastVersion}, Current: ${APP_VERSION}`);
-    if (lastVersion && lastVersion !== APP_VERSION) {
-      console.log(`New hardcoded version detected: ${APP_VERSION}. Clearing cache...`);
-      if (updateInitiated.current) return;
-      updateInitiated.current = true;
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(registrations => {
-          for (let registration of registrations) {
-            registration.unregister();
-          }
-          localStorage.setItem('app_version', APP_VERSION);
-          window.location.reload();
-        });
-      } else {
-        localStorage.setItem('app_version', APP_VERSION);
-        window.location.reload();
-      }
-    } else {
+    // Just sync the versions silently in localStorage for logging/debugging
+    if (APP_VERSION) {
       localStorage.setItem('app_version', APP_VERSION);
     }
   }, []);
 
-  // Force update if remote publishedVersion changes
   useEffect(() => {
-    // Only check for remote updates if we have successfully loaded the config from Firebase
-    // AND it's not the initial load where local and remote might briefly mismatch
-    if (!state.isConfigLoaded || !state.appConfig?.publishedVersion) return;
-    
-    // Add a small delay to allow potential local storage and state to sync 
-    // to prevent immediate loop on initial load
-    const timer = setTimeout(() => {
-        if (updateInitiated.current) return;
-
-        const adminMode = user?.email === "leandrosolon@gmail.com";
-        const remoteVersion = state.appConfig.publishedVersion;
-        const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
-        
-        console.log(`Checking remote version: ${remoteVersion}, Stored: ${currentStoredVersion}`);
-        
-        // Only reload if the remote version changes mid-session or across sessions
-        if (currentStoredVersion !== remoteVersion && !adminMode) {
-          console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
-          updateInitiated.current = true;
-          localStorage.setItem('remote_published_version', remoteVersion);
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(registrations => {
-              for (let registration of registrations) {
-                registration.unregister();
-              }
-              window.location.reload();
-            });
-          } else {
-            window.location.reload();
-          }
-        } else {
-          // Just track it silently
-          localStorage.setItem('remote_published_version', remoteVersion);
-        }
-    }, 2000);
-
-    return () => clearTimeout(timer);
-  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
+    if (state.isConfigLoaded && state.appConfig?.publishedVersion) {
+      localStorage.setItem('remote_published_version', state.appConfig.publishedVersion);
+    }
+  }, [state.appConfig?.publishedVersion, state.isConfigLoaded]);
 
   // Initialize GA once
   useEffect(() => {
