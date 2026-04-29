@@ -272,8 +272,26 @@ export default function Dashboard({
         </div>
       )}
       
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="space-y-6 lg:col-span-7">
+      {/* Share App & Marketing Buttons */}
+      <div className={cn("grid gap-3", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
+        <button 
+          onClick={handleShare}
+          className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all"
+        >
+          <Share2 size={18} className="text-blue-600" />
+          Indicar App
+        </button>
+        {isAdmin && (
+          <button 
+            onClick={onOpenAIStudio}
+            className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all"
+          >
+            <Sparkles size={18} className="text-blue-200" />
+            Criar Propaganda
+          </button>
+        )}
+      </div>
+
 
       {/* Daily Goal Card (Prominent) */}
       <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl shadow-xl border border-white/10 overflow-hidden relative">
@@ -364,6 +382,10 @@ export default function Dashboard({
           </div>
         </div>
       </div>
+
+      <PWAInstallButton />
+
+      {/* Status Card */}
       <div className="bg-white/10 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-white/10">
         <div className="flex items-center gap-3 mb-4">
           <div className="p-2.5 bg-blue-500/20 rounded-2xl">
@@ -489,32 +511,7 @@ export default function Dashboard({
       )}
 
       {/* Main Stats Grid */}
-      </div>
-
-      <div className="space-y-6 lg:col-span-5 lg:sticky lg:top-24">
-        {/* Share App & Marketing Buttons */}
-        <div className={cn("grid gap-3", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
-          <button 
-            onClick={handleShare}
-            className="py-4 bg-white text-[#0047AB] rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-black/20 active:scale-95 transition-all"
-          >
-            <Share2 size={18} className="text-blue-600" />
-            Indicar App
-          </button>
-          {isAdmin && (
-            <button 
-              onClick={onOpenAIStudio}
-              className="py-4 bg-blue-600 text-white rounded-3xl font-bold flex items-center justify-center gap-3 shadow-lg shadow-blue-900/40 active:scale-95 transition-all"
-            >
-              <Sparkles size={18} className="text-blue-200" />
-              Criar Propaganda
-            </button>
-          )}
-        </div>
-
-        <PWAInstallButton />
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard 
           title="Ganhos Brutos" 
           value={formatCurrency(totals.earnings)} 
@@ -719,9 +716,6 @@ export default function Dashboard({
         </p>
         <div className="mt-4 border-t border-white/10 pt-4 text-[10px] text-white/50">
           Cálculo tributário disponível abaixo.
-        </div>
-      </div>
-
         </div>
       </div>
 

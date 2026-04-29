@@ -56,7 +56,8 @@ import {
   deleteDoc,
   getDoc,
   getDocFromServer,
-  writeBatch
+  writeBatch,
+  limit
 } from 'firebase/firestore';
 
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
@@ -80,24 +81,11 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 
-const APP_VERSION = '1.1.7';
+const APP_VERSION = '1.1.5';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
-        console.error("Firestore connectivity test:", error);
-      }
-    }
-    testConnection();
-  }, []);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'map' | 'reports' | 'settings' | 'maintenance'>('dashboard');
@@ -145,8 +133,6 @@ export default function App() {
     }
   }, []);
 
-  const [appStartTime] = useState(Date.now());
-
   // Force update if remote publishedVersion changes
   useEffect(() => {
     // Only check for remote updates if we have successfully loaded the config from Firebase
@@ -154,46 +140,27 @@ export default function App() {
     
     const adminMode = user?.email === "leandrosolon@gmail.com";
     const remoteVersion = state.appConfig.publishedVersion;
-    const currentStoredVersion = localStorage.getItem('remote_published_version');
+    const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
     
-    // Default the stored version if it doesn't exist yet
-    if (!currentStoredVersion) {
-      localStorage.setItem('remote_published_version', remoteVersion);
-      return;
-    }
-
     // Only reload if the remote version changes mid-session or across sessions
-    // if (currentStoredVersion !== remoteVersion && !adminMode) {
-    //   console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
-    //   localStorage.setItem('remote_published_version', remoteVersion);
-    //   
-    //   const reloadWithClearedCache = async () => {
-    //     try {
-    //       if ('serviceWorker' in navigator) {
-    //         const registrations = await navigator.serviceWorker.getRegistrations();
-    //         for (let registration of registrations) {
-    //           await registration.unregister();
-    //         }
-    //       }
-    //       if ('caches' in window) {
-    //         const keys = await caches.keys();
-    //         for (let key of keys) {
-    //           await caches.delete(key);
-    //         }
-    //       }
-    //     } catch (e) {
-    //          console.error("Erro ao limpar cache:", e);
-    //     } finally {
-    //       window.location.reload();
-    //     }
-    //   };
-    //   
-    //   reloadWithClearedCache();
-    // } else {
+    if (currentStoredVersion !== remoteVersion && !adminMode) {
+      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+      localStorage.setItem('remote_published_version', remoteVersion);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+          window.location.reload();
+        });
+      } else {
+        window.location.reload();
+      }
+    } else {
       // Just track it silently
       localStorage.setItem('remote_published_version', remoteVersion);
-    // }
-  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user, appStartTime]);
+    }
+  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
 
   // Initialize GA once
   useEffect(() => {
@@ -327,7 +294,8 @@ export default function App() {
 
     // Sync Entries
     const entriesRef = collection(db, 'users', user.uid, 'entries');
-    const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
+    const entriesQuery = query(entriesRef, orderBy('createdAt', 'desc'), limit(100));
+    const unsubEntries = onSnapshot(entriesQuery, (snapshot) => {
       const entriesData = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
@@ -345,9 +313,9 @@ export default function App() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}/entries`);
     });
 
-    // Sync App Config
+    // Sync App Config (Fetch only once to save reads)
     const configRef = doc(db, 'config', 'app');
-    const unsubAppConfig = onSnapshot(configRef, (docSnap) => {
+    getDoc(configRef).then((docSnap) => {
       if (docSnap.exists()) {
         const config = docSnap.data() as any;
         console.log("App Config Loaded:", config);
@@ -365,24 +333,13 @@ export default function App() {
           isConfigLoaded: true
         }));
       }
-    }, (error) => {
+    }).catch((error) => {
       handleFirestoreError(error, OperationType.GET, 'config/app');
-    });
-
-    // Fetch Global Stats
-    getGlobalStats().then(stats => {
-      if (stats) setGlobalStats(stats);
-    });
-
-    // Fetch Global Stats
-    getGlobalStats().then(stats => {
-      if (stats) setGlobalStats(stats);
     });
 
     return () => {
       unsubConfig();
       unsubEntries();
-      unsubAppConfig();
     };
   }, [user, isAuthReady]);
 
@@ -392,20 +349,6 @@ export default function App() {
     if (!user?.email) return false;
     return user.email.toLowerCase().trim() === 'leandrosolon@gmail.com';
   }, [user]);
-
-  // Test Connection
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
-      }
-    }
-    testConnection();
-  }, []);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -1145,7 +1088,7 @@ export default function App() {
             onStartWithExamples={handleStartWithExamples}
           />
         )}
-        {isAdmin && isAIVideoStudioOpen && (
+        {isAIVideoStudioOpen && (
           <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         {isEntryModalOpen && (

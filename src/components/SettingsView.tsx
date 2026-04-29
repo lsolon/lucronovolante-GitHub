@@ -108,16 +108,6 @@ export default function SettingsView({
   const [localMapping, setLocalMapping] = useState<Partial<AppSheetMapping>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [isGeminiConfigured, setIsGeminiConfigured] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then(r => r.json())
-      .then(data => {
-        setIsGeminiConfigured(data.keys.includes('GEMINI_API_KEY'));
-      });
-  }, []);
-
   const currentMapping: AppSheetMapping = {
     data: localMapping.data ?? appSheetMapping?.data ?? '',
     tipo: localMapping.tipo ?? appSheetMapping?.tipo ?? '',
@@ -694,26 +684,26 @@ export default function SettingsView({
               
               <div className={cn(
                 "p-4 rounded-2xl border flex items-center justify-between",
-                isGeminiConfigured ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
+                process.env.GEMINI_API_KEY ? "bg-emerald-50 border-emerald-100" : "bg-rose-50 border-rose-100"
               )}>
                 <div className="flex items-center gap-3">
-                  {isGeminiConfigured ? (
+                  {process.env.GEMINI_API_KEY ? (
                     <CheckCircle2 className="text-emerald-600" size={20} />
                   ) : (
                     <AlertCircle className="text-rose-600" size={20} />
                   )}
                   <div>
-                    <p className={cn("text-sm font-bold", isGeminiConfigured ? "text-emerald-700" : "text-rose-700")}>
-                      {isGeminiConfigured ? "IA Configurada" : "IA não configurada"}
+                    <p className={cn("text-sm font-bold", process.env.GEMINI_API_KEY ? "text-emerald-700" : "text-rose-700")}>
+                      {process.env.GEMINI_API_KEY ? "IA Configurada" : "IA não configurada"}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      {isGeminiConfigured 
+                      {process.env.GEMINI_API_KEY 
                         ? "Recursos de leitura automática de notas estão ativos." 
                         : "Adicione a GEMINI_API_KEY nos Secrets para ativar a leitura de notas."}
                     </p>
                   </div>
                 </div>
-                {!isGeminiConfigured && (
+                {!process.env.GEMINI_API_KEY && (
                   <div className="text-[10px] font-black text-rose-600 uppercase bg-white px-2 py-1 rounded-lg border border-rose-100">
                     Ação Necessária
                   </div>
@@ -1229,8 +1219,7 @@ export default function SettingsView({
       {activeSection === 'admin' && isAdmin && (
         <AdminPanel 
           appConfig={appConfig} 
-          onUpdateAppConfig={onUpdateAppConfig}
-          isGeminiConfigured={isGeminiConfigured}
+          onUpdateAppConfig={onUpdateAppConfig} 
         />
       )}
 
@@ -1922,9 +1911,8 @@ function MarketingPanel() {
   );
 }
 
-function AdminPanel({ appConfig, onUpdateAppConfig, isGeminiConfigured }: { appConfig?: AppConfig, onUpdateAppConfig?: (config: AppConfig) => void, isGeminiConfigured: boolean | null }) {
+function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, onUpdateAppConfig?: (config: AppConfig) => void }) {
   const [stats, setStats] = useState<GlobalStats | null>(null);
-  const [activeUsersCount, setActiveUsersCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showDebug, setShowDebug] = useState(false);
@@ -1947,24 +1935,8 @@ function AdminPanel({ appConfig, onUpdateAppConfig, isGeminiConfigured }: { appC
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [globalData, allUsers] = await Promise.all([
-          getGlobalStats(),
-          getAllUsers()
-        ]);
-        
-        setStats(globalData);
-        
-        // Count users active in the last 48h
-        const fortyEightHoursAgo = new Date();
-        fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
-        
-        const activeCount = allUsers.filter(user => {
-          if (!user.lastSeen) return false;
-          const lastSeenDate = new Date(user.lastSeen);
-          return lastSeenDate >= fortyEightHoursAgo;
-        }).length;
-        
-        setActiveUsersCount(activeCount);
+        const data = await getGlobalStats();
+        setStats(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Erro ao carregar estatísticas');
       } finally {
@@ -2155,14 +2127,10 @@ function AdminPanel({ appConfig, onUpdateAppConfig, isGeminiConfigured }: { appC
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Acessos</p>
             <p className="text-2xl font-black text-blue-600">{stats?.totalVisits || 0}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ativos (48h)</p>
-            <p className="text-2xl font-black text-emerald-600">{activeUsersCount}</p>
           </div>
         </div>
 
