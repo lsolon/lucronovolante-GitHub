@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, ReactNode, useCallback, Component, ErrorInfo } from 'react';
+import { useState, useEffect, useMemo, ReactNode, useCallback, Component, ErrorInfo, useRef } from 'react';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -112,10 +112,15 @@ export default function App() {
   });
 
   // Force update if hardcoded app version changes
+  const updateInitiated = useRef(false);
+
   useEffect(() => {
     const lastVersion = localStorage.getItem('app_version');
+    console.log(`Checking local app version: ${lastVersion}, Current: ${APP_VERSION}`);
     if (lastVersion && lastVersion !== APP_VERSION) {
-      console.log(`New version detected: ${APP_VERSION}. Clearing cache...`);
+      console.log(`New hardcoded version detected: ${APP_VERSION}. Clearing cache...`);
+      if (updateInitiated.current) return;
+      updateInitiated.current = true;
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
           for (let registration of registrations) {
@@ -142,13 +147,18 @@ export default function App() {
     // Add a small delay to allow potential local storage and state to sync 
     // to prevent immediate loop on initial load
     const timer = setTimeout(() => {
+        if (updateInitiated.current) return;
+
         const adminMode = user?.email === "leandrosolon@gmail.com";
         const remoteVersion = state.appConfig.publishedVersion;
         const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
         
+        console.log(`Checking remote version: ${remoteVersion}, Stored: ${currentStoredVersion}`);
+        
         // Only reload if the remote version changes mid-session or across sessions
         if (currentStoredVersion !== remoteVersion && !adminMode) {
           console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+          updateInitiated.current = true;
           localStorage.setItem('remote_published_version', remoteVersion);
           if ('serviceWorker' in navigator) {
             navigator.serviceWorker.getRegistrations().then(registrations => {
