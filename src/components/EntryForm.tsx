@@ -31,7 +31,7 @@ import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../serv
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 
 interface EntryFormProps {
-  onSubmit: (entry: Omit<Entry, 'id'>) => void;
+  onSubmit: (entry: Omit<Entry, 'id'>) => Promise<void>;
   categories: Category[];
   earningCategories: Category[];
   lastKm: number;
@@ -262,6 +262,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
   };
 
   const [isScannerLoading, setIsScannerLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -458,17 +459,20 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const [formError, setFormError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setIsSaving(true);
     
     if (tipo === 'Despesa' && (isAbastecimento || isTrocaOleo || isMaintenance) && !km) {
       setFormError('O preenchimento do KM é obrigatório para este lançamento.');
+      setIsSaving(false);
       return;
     }
 
     if (!data) {
       setFormError('Por favor, selecione uma data.');
+      setIsSaving(false);
       return;
     }
 
@@ -486,6 +490,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       
       if (entryValor <= 0) {
         setFormError('Por favor, insira pelo menos um valor de ganho.');
+        setIsSaving(false);
         return;
       }
     } else {
@@ -494,6 +499,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       
       if (entryValor <= 0) {
         setFormError('Por favor, insira o valor da despesa.');
+        setIsSaving(false);
         return;
       }
     }
@@ -512,31 +518,37 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
     const currentQty = isAbastecimento ? Number(quantidade.toString().replace(',', '.')) : undefined;
     const currentPrice = isAbastecimento ? Number(valorUnitario.toString().replace(',', '.')) : undefined;
 
-    onSubmit({
-      data: formattedDate,
-      createdAt: initialData?.createdAt || formattedCreatedAt,
-      tipo,
-      categoriaId,
-      valor: entryValor,
-      km: validKm,
-      kmRodado: initialData?.kmRodado || kmRodado,
-      combustivel: isAbastecimento ? combustivel : undefined,
-      quantidade: isNaN(currentQty as number) ? undefined : currentQty,
-      valorUnitario: isNaN(currentPrice as number) ? undefined : currentPrice,
-      bandeiraPosto: isAbastecimento ? bandeiraPosto : undefined,
-      gps,
-      endereco,
-      photoUrl: photoUrl || undefined,
-      qrCodeData: qrCodeData || undefined,
-      linkNota: linkNota || undefined,
-      ganhos: numericGanhos,
-      obs,
-      ratings: (isAbastecimento || isAlimentacao) ? {
-        servico: ratingServico,
-        higiene: ratingHigiene,
-        atendimento: ratingAtendimento
-      } : undefined
-    });
+    try {
+      await onSubmit({
+        data: formattedDate,
+        createdAt: initialData?.createdAt || formattedCreatedAt,
+        tipo,
+        categoriaId,
+        valor: entryValor,
+        km: validKm,
+        kmRodado: initialData?.kmRodado || kmRodado,
+        combustivel: isAbastecimento ? combustivel : undefined,
+        quantidade: isNaN(currentQty as number) ? undefined : currentQty,
+        valorUnitario: isNaN(currentPrice as number) ? undefined : currentPrice,
+        bandeiraPosto: isAbastecimento ? bandeiraPosto : undefined,
+        gps,
+        endereco,
+        photoUrl: photoUrl || undefined,
+        qrCodeData: qrCodeData || undefined,
+        linkNota: linkNota || undefined,
+        ganhos: numericGanhos,
+        obs,
+        ratings: (isAbastecimento || isAlimentacao) ? {
+          servico: ratingServico,
+          higiene: ratingHigiene,
+          atendimento: ratingAtendimento
+        } : undefined
+      });
+    } catch (error: any) {
+      console.error('Error saving entry', error);
+      setFormError('Erro ao salvar lançamento: ' + (error.message || 'Erro desconhecido.'));
+      setIsSaving(false);
+    }
   };
 
   const handleGanhosChange = (id: string, value: string) => {
@@ -1041,13 +1053,14 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
       <button
         type="submit"
+        disabled={isSaving}
         className={cn(
-          "w-full py-4 rounded-2xl text-white font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98]",
+          "w-full py-4 rounded-2xl text-white font-bold shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50",
           tipo === 'Ganhos' ? "bg-blue-600 hover:bg-blue-700 shadow-blue-200" : "bg-rose-600 hover:bg-rose-700 shadow-rose-200"
         )}
       >
-        <Save size={20} />
-        {initialData ? 'Atualizar Lançamento' : 'Salvar Lançamento'}
+        {isSaving ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+        {isSaving ? 'Salvando...' : (initialData ? 'Atualizar Lançamento' : 'Salvar Lançamento')}
       </button>
     </form>
   );
