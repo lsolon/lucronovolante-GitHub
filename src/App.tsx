@@ -281,6 +281,15 @@ export default function App() {
       if (docSnap.exists()) {
         const config = docSnap.data() as any;
         console.log("App Config Loaded:", config);
+        
+        // --- EMERGENCY FIX ---
+        // Se a versão impressa tiver forçando os celulares mais velhos num loop, zeramos a versão.
+        if (config.publishedVersion && user?.email === 'leandrosolon@gmail.com') {
+          console.log("EMERGENCY FIX: Zerando a versão no Firebase para quebrar o loop infinito de reloads.");
+          setDoc(configRef, { ...config, publishedVersion: "" }).catch(console.error);
+        }
+        // ---------------------
+
         setState(prev => ({ ...prev, appConfig: config, isConfigLoaded: true }));
       } else {
         console.log("App Config not found, using defaults");

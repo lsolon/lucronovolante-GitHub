@@ -20,6 +20,18 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     };
   }
 
+  public componentDidMount() {
+    window.addEventListener('app-quota-error', this.handleQuotaError as EventListener);
+  }
+
+  public componentWillUnmount() {
+    window.removeEventListener('app-quota-error', this.handleQuotaError as EventListener);
+  }
+
+  private handleQuotaError = (event: CustomEvent) => {
+    this.setState({ hasError: true, error: new Error(JSON.stringify(event.detail)) });
+  };
+
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
