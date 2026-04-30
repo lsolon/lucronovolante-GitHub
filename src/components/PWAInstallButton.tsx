@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Download, Smartphone } from 'lucide-react';
+import { Download, Smartphone, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export default function PWAInstallButton() {
@@ -63,13 +63,13 @@ export default function PWAInstallButton() {
 
   if (!deferredPrompt) {
     return (
-      <div className="bg-orange-50 border border-orange-100 p-4 rounded-3xl flex items-center gap-3">
-        <div className="bg-orange-100 p-2 rounded-full">
-          <Smartphone className="text-orange-600 size-5" />
+      <div className="bg-white border border-gray-200 p-4 rounded-3xl flex items-center gap-3">
+        <div className="bg-gray-100 p-2 rounded-full">
+          <AlertCircle className="text-black size-5" />
         </div>
         <div className="flex-1">
-          <p className="text-sm font-bold text-orange-900 leading-tight">Dica de Instalação</p>
-          <p className="text-[10px] text-orange-700">Para instalar, toque no menu do navegador e selecione "Instalar App" ou "Adicionar à Tela de Início".</p>
+          <p className="text-sm font-bold text-black leading-tight">Dica de Instalação</p>
+          <p className="text-[10px] text-gray-700">Para instalar, toque no menu do navegador e selecione "Instalar App" ou "Adicionar à Tela de Início".</p>
         </div>
       </div>
     );
