@@ -63,13 +63,13 @@ export default function PWAInstallButton() {
 
   if (!deferredPrompt) {
     return (
-      <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-3xl flex items-center gap-3">
-        <div className="bg-emerald-100 p-2 rounded-full">
-          <Smartphone className="text-emerald-600 size-5" />
+      <div className="bg-orange-50 border border-orange-100 p-4 rounded-3xl flex items-center gap-3">
+        <div className="bg-orange-100 p-2 rounded-full">
+          <Smartphone className="text-orange-600 size-5" />
         </div>
         <div className="flex-1">
-          <p className="text-sm font-bold text-emerald-900 leading-tight">Dica de Instalação</p>
-          <p className="text-[10px] text-emerald-700">Para instalar, toque no menu do navegador e selecione "Instalar App" ou "Adicionar à Tela de Início".</p>
+          <p className="text-sm font-bold text-orange-900 leading-tight">Dica de Instalação</p>
+          <p className="text-[10px] text-orange-700">Para instalar, toque no menu do navegador e selecione "Instalar App" ou "Adicionar à Tela de Início".</p>
         </div>
       </div>
     );
