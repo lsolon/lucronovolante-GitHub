@@ -187,17 +187,20 @@ export default function App() {
     };
   }, [isAuthReady, user]);
 
-  // Firestore Sync
+  // Firestore Sync 
   useEffect(() => {
     if (!user) return;
 
+    console.log("🔥 [Firestore] Iniciando sincronização para usuário:", user.uid);
+    
     // Sync User Config
     const userDocRef = doc(db, 'users', user.uid);
     const unsubConfig = onSnapshot(userDocRef, (docSnap) => {
+      console.log("🔄 [Firestore] Snapshot de configuração recebido.");
       if (docSnap.exists()) {
         const data = docSnap.data();
         
-        // Merge categories to ensure new defaults (like subcategories) are added
+        // Merge categories
         const userCategories = data.categories || [];
         const mergedCategories = [...userCategories];
         
@@ -207,120 +210,7 @@ export default function App() {
             mergedCategories.push(defaultCat);
           }
         });
-
-        // Merge maintenance intervals
-        const userIntervals = data.maintenanceIntervals || [];
-        const mergedIntervals = [...userIntervals];
         
-        DEFAULT_MAINTENANCE_INTERVALS.forEach(defaultInt => {
-          const exists = mergedIntervals.some(m => m.id === defaultInt.id);
-          if (!exists) {
-            mergedIntervals.push(defaultInt);
-          }
-        });
-
-        setState(prev => ({
-          ...prev,
-          fixedCosts: data.fixedCosts || DEFAULT_FIXED_COSTS,
-          categories: mergedCategories,
-          earningCategories: data.earningCategories || DEFAULT_EARNING_CATEGORIES,
-          currentKm: data.currentKm || 0,
-          targetKm: data.targetKm || 0,
-          maintenanceIntervals: mergedIntervals,
-          trialStartDate: data.trialStartDate,
-          appSheetMapping: data.appSheetMapping,
-          hasSeenTutorial: data.hasSeenTutorial ?? false,
-          tutorialOptOut: data.tutorialOptOut ?? false
-        }));
-      } else {
-        // Initialize user doc if it doesn't exist
-        const now = new Date().toISOString();
-        setDoc(userDocRef, cleanObject({
-          email: user.email,
-          displayName: user.displayName,
-          fixedCosts: DEFAULT_FIXED_COSTS,
-          categories: DEFAULT_CATEGORIES,
-          earningCategories: DEFAULT_EARNING_CATEGORIES,
-          currentKm: 0,
-          targetKm: 0,
-          maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
-          trialStartDate: now,
-          visitCount: 1,
-          lastSeen: now,
-          tutorialOptOut: false
-        }), { merge: true });
-      }
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
-    });
-
-    // Sync Entries
-    const entriesRef = collection(db, 'users', user.uid, 'entries');
-    const entriesQuery = query(entriesRef, orderBy('createdAt', 'desc'), limit(100));
-    const unsubEntries = onSnapshot(entriesQuery, (snapshot) => {
-      const entriesData = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Entry[];
-      
-      // Sort by data desc, then createdAt time desc to ensure chronological order
-      const sortedEntries = entriesData.sort((a, b) => {
-        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
-        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
-        return dateB.localeCompare(dateA);
-      });
-      
-      setState(prev => ({ ...prev, entries: sortedEntries }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/entries`);
-    });
-
-    // Sync App Config (Fetch only once to save reads)                
-    const configRef = doc(db, 'config', 'app');                
-    getDoc(configRef).then((docSnap) => {                
-      if (docSnap.exists()) {                
-        const config = docSnap.data() as any;                
-        console.log("App Config Loaded:", config);                
-        setState(prev => ({ ...prev, appConfig: config, isConfigLoaded: true }));                
-      } else {                
-        console.log("App Config not found, using defaults");                
-        // Default config if it doesn't exist yet                
-        setState(prev => ({                 
-          ...prev,                 
-          appConfig: {                
-            publishedVersion: '1.1.3',                
-            betaVersion: '1.1.3',                
-            maintenanceMode: true                
-          },                
-          isConfigLoaded: true                
-        }));                
-      }                
-    }).catch((error) => {                
-      handleFirestoreError(error, OperationType.GET, 'config/app');                
-    });                
-  }, []); // Run only once on mount                
-                
-  // Firestore Sync - User + Entries                
-  useEffect(() => {                
-    if (!user) return;                
-                
-    // Sync User Config                
-    const userDocRef = doc(db, 'users', user.uid);                
-    const unsubConfig = onSnapshot(userDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();                
-        
-        // Merge categories to ensure new defaults (like subcategories) are added                
-        const userCategories = data.categories || [];                
-        const mergedCategories = [...userCategories];                
-        
-        DEFAULT_CATEGORIES.forEach(defaultCat => {                
-          const exists = mergedCategories.some(c => c.id === defaultCat.id);                
-          if (!exists) {                
-            mergedCategories.push(defaultCat);                
-          }                
-        });                
-                
         // Merge maintenance intervals                
         const userIntervals = data.maintenanceIntervals || [];                
         const mergedIntervals = [...userIntervals];                
@@ -371,6 +261,7 @@ export default function App() {
     const entriesRef = collection(db, 'users', user.uid, 'entries');                
     const entriesQuery = query(entriesRef, orderBy('createdAt', 'desc'), limit(100));                
     const unsubEntries = onSnapshot(entriesQuery, (snapshot) => {                
+      console.log("🔄 [Firestore] Snapshot de entradas recebido:", snapshot.size);
       const entriesData = snapshot.docs.map(doc => ({                
         ...doc.data(),                
         id: doc.id                
@@ -389,6 +280,7 @@ export default function App() {
     });                
                 
     return () => {                
+      console.log("🛑 [Firestore] Limpando listeners do usuário:", user.uid);
       unsubConfig();                
       unsubEntries();                
     };                
