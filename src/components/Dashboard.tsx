@@ -261,7 +261,7 @@ export default function Dashboard({
               <Sparkles className="text-white size-7" />
             </div>
             <div>
-              <h2 className="text-xl font-black tracking-tight">Bem-vindo ao LucroNoVolante!</h2>
+              <h2 className="text-xl font-black tracking-tight text-black">Bem-vindo ao LucroNoVolante!</h2>
               <p className="text-blue-100 text-sm opacity-90">Vamos configurar seu painel para começar a lucrar mais.</p>
             </div>
           </div>

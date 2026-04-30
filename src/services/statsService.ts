@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, Timestamp, writeBatch, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, Timestamp, writeBatch, collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
 import { GlobalStats } from '../types';
 import { cleanObject } from '../lib/utils';
@@ -64,7 +64,7 @@ export async function trackContribution(userId: string) {
 export async function getAllUsers(): Promise<any[]> {
   try {
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, orderBy('lastSeen', 'desc'), limit(50));
+    const q = query(usersRef, orderBy('lastSeen', 'desc'));
     const querySnapshot = await getDocs(q);
     const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
     

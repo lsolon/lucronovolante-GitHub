@@ -20,21 +20,11 @@ export default function PWAPrompt() {
 
   useEffect(() => {
     if (needRefresh && updateServiceWorker) {
-      // Don't auto-prompt/reload, let the UI handle it
+      if (window.confirm('Nova versão disponível! Deseja atualizar agora?')) {
+        updateServiceWorker(true);
+      }
     }
   }, [needRefresh, updateServiceWorker]);
 
-  if (!needRefresh) return null;
-
-  return (
-    <div className="fixed top-4 left-4 right-4 bg-blue-600 text-white p-4 rounded-xl shadow-lg z-[1000] flex items-center justify-between">
-      <p className="text-sm font-medium">Nova versão disponível!</p>
-      <button 
-        onClick={() => updateServiceWorker?.(true)}
-        className="bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-bold"
-      >
-        Atualizar
-      </button>
-    </div>
-  );
+  return null;
 }

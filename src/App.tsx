@@ -8,7 +8,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, ReactNode, useCallback, Component, ErrorInfo, useRef } from 'react';
+import { useState, useEffect, useMemo, ReactNode, useCallback, Component, ErrorInfo } from 'react';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -56,8 +56,7 @@ import {
   deleteDoc,
   getDoc,
   getDocFromServer,
-  writeBatch,
-  limit
+  writeBatch
 } from 'firebase/firestore';
 
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
@@ -81,11 +80,24 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 
-const APP_VERSION = '1.1.6';
+const APP_VERSION = '1.1.5';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration.");
+        }
+        console.error("Firestore connectivity test:", error);
+      }
+    }
+    testConnection();
+  }, []);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'map' | 'reports' | 'settings' | 'maintenance'>('dashboard');
@@ -111,18 +123,56 @@ export default function App() {
     isConfigLoaded: false
   });
 
+  // Force update if hardcoded app version changes
   useEffect(() => {
-    // Just sync the versions silently in localStorage for logging/debugging
-    if (APP_VERSION) {
+    const lastVersion = localStorage.getItem('app_version');
+    if (lastVersion && lastVersion !== APP_VERSION) {
+      console.log(`New version detected: ${APP_VERSION}. Clearing cache...`);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+          localStorage.setItem('app_version', APP_VERSION);
+          window.location.reload();
+        });
+      } else {
+        localStorage.setItem('app_version', APP_VERSION);
+        window.location.reload();
+      }
+    } else {
       localStorage.setItem('app_version', APP_VERSION);
     }
   }, []);
 
+  // Force update if remote publishedVersion changes
   useEffect(() => {
-    if (state.isConfigLoaded && state.appConfig?.publishedVersion) {
-      localStorage.setItem('remote_published_version', state.appConfig.publishedVersion);
+    // Only check for remote updates if we have successfully loaded the config from Firebase
+    if (!state.isConfigLoaded || !state.appConfig?.publishedVersion) return;
+    
+    const adminMode = user?.email === "leandrosolon@gmail.com";
+    const remoteVersion = state.appConfig.publishedVersion;
+    const currentStoredVersion = localStorage.getItem('remote_published_version') || remoteVersion;
+    
+    // Only reload if the remote version changes mid-session or across sessions
+    if (currentStoredVersion !== remoteVersion && !adminMode) {
+      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+      localStorage.setItem('remote_published_version', remoteVersion);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+          window.location.reload();
+        });
+      } else {
+        window.location.reload();
+      }
+    } else {
+      // Just track it silently
+      localStorage.setItem('remote_published_version', remoteVersion);
     }
-  }, [state.appConfig?.publishedVersion, state.isConfigLoaded]);
+  }, [state.appConfig?.publishedVersion, state.isConfigLoaded, user]);
 
   // Initialize GA once
   useEffect(() => {
@@ -187,20 +237,17 @@ export default function App() {
     };
   }, [isAuthReady, user]);
 
-  // Firestore Sync 
+  // Firestore Sync
   useEffect(() => {
     if (!user) return;
 
-    console.log("🔥 [Firestore] Iniciando sincronização para usuário:", user.uid);
-    
     // Sync User Config
     const userDocRef = doc(db, 'users', user.uid);
     const unsubConfig = onSnapshot(userDocRef, (docSnap) => {
-      console.log("🔄 [Firestore] Snapshot de configuração recebido.");
       if (docSnap.exists()) {
         const data = docSnap.data();
         
-        // Merge categories
+        // Merge categories to ensure new defaults (like subcategories) are added
         const userCategories = data.categories || [];
         const mergedCategories = [...userCategories];
         
@@ -210,81 +257,113 @@ export default function App() {
             mergedCategories.push(defaultCat);
           }
         });
+
+        // Merge maintenance intervals
+        const userIntervals = data.maintenanceIntervals || [];
+        const mergedIntervals = [...userIntervals];
         
-        // Merge maintenance intervals                
-        const userIntervals = data.maintenanceIntervals || [];                
-        const mergedIntervals = [...userIntervals];                
-        
-        DEFAULT_MAINTENANCE_INTERVALS.forEach(defaultInt => {                
-          const exists = mergedIntervals.some(m => m.id === defaultInt.id);                
-          if (!exists) {                
-            mergedIntervals.push(defaultInt);                
-          }                
-        });                
-                
-        setState(prev => ({                
-          ...prev,                
-          fixedCosts: data.fixedCosts || DEFAULT_FIXED_COSTS,                
-          categories: mergedCategories,                
-          earningCategories: data.earningCategories || DEFAULT_EARNING_CATEGORIES,                
-          currentKm: data.currentKm || 0,                
-          targetKm: data.targetKm || 0,                
-          maintenanceIntervals: mergedIntervals,                
-          trialStartDate: data.trialStartDate,                
-          appSheetMapping: data.appSheetMapping,                
-          hasSeenTutorial: data.hasSeenTutorial ?? false,                
-          tutorialOptOut: data.tutorialOptOut ?? false                
-        }));                
-      } else {                
-        // Initialize user doc if it doesn't exist                
-        const now = new Date().toISOString();                
-        setDoc(userDocRef, cleanObject({                
-          email: user.email,                
-          displayName: user.displayName,                
-          fixedCosts: DEFAULT_FIXED_COSTS,                
-          categories: DEFAULT_CATEGORIES,                
-          earningCategories: DEFAULT_EARNING_CATEGORIES,                
-          currentKm: 0,                
-          targetKm: 0,                
-          maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,                
-          trialStartDate: now,                
-          visitCount: 1,                
-          lastSeen: now,                
-          tutorialOptOut: false                
-        }), { merge: true });                
-      }                
-    }, (error) => {                
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);                
-    });                
-                
-    // Sync Entries                
-    const entriesRef = collection(db, 'users', user.uid, 'entries');                
-    const entriesQuery = query(entriesRef, orderBy('createdAt', 'desc'), limit(100));                
-    const unsubEntries = onSnapshot(entriesQuery, (snapshot) => {                
-      console.log("🔄 [Firestore] Snapshot de entradas recebido:", snapshot.size);
-      const entriesData = snapshot.docs.map(doc => ({                
-        ...doc.data(),                
-        id: doc.id                
-      })) as Entry[];                
+        DEFAULT_MAINTENANCE_INTERVALS.forEach(defaultInt => {
+          const exists = mergedIntervals.some(m => m.id === defaultInt.id);
+          if (!exists) {
+            mergedIntervals.push(defaultInt);
+          }
+        });
+
+        setState(prev => ({
+          ...prev,
+          fixedCosts: data.fixedCosts || DEFAULT_FIXED_COSTS,
+          categories: mergedCategories,
+          earningCategories: data.earningCategories || DEFAULT_EARNING_CATEGORIES,
+          currentKm: data.currentKm || 0,
+          targetKm: data.targetKm || 0,
+          maintenanceIntervals: mergedIntervals,
+          trialStartDate: data.trialStartDate,
+          appSheetMapping: data.appSheetMapping,
+          hasSeenTutorial: data.hasSeenTutorial ?? false,
+          tutorialOptOut: data.tutorialOptOut ?? false
+        }));
+      } else {
+        // Initialize user doc if it doesn't exist
+        const now = new Date().toISOString();
+        setDoc(userDocRef, cleanObject({
+          email: user.email,
+          displayName: user.displayName,
+          fixedCosts: DEFAULT_FIXED_COSTS,
+          categories: DEFAULT_CATEGORIES,
+          earningCategories: DEFAULT_EARNING_CATEGORIES,
+          currentKm: 0,
+          targetKm: 0,
+          maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
+          trialStartDate: now,
+          visitCount: 1,
+          lastSeen: now,
+          tutorialOptOut: false
+        }), { merge: true });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+    });
+
+    // Sync Entries
+    const entriesRef = collection(db, 'users', user.uid, 'entries');
+    const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
+      const entriesData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as Entry[];
       
-      // Sort by data desc, then createdAt time desc to ensure chronological order                
-      const sortedEntries = entriesData.sort((a, b) => {                
-        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');                
-        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');                
-        return dateB.localeCompare(dateA);                
-      });                
+      // Sort by data desc, then createdAt time desc to ensure chronological order
+      const sortedEntries = entriesData.sort((a, b) => {
+        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
+        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
+        return dateB.localeCompare(dateA);
+      });
       
-      setState(prev => ({ ...prev, entries: sortedEntries }));                
-    }, (error) => {                
-      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/entries`);                
-    });                
-                
-    return () => {                
-      console.log("🛑 [Firestore] Limpando listeners do usuário:", user.uid);
-      unsubConfig();                
-      unsubEntries();                
-    };                
-  }, [user]); // Run only when user changes
+      setState(prev => ({ ...prev, entries: sortedEntries }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `users/${user.uid}/entries`);
+    });
+
+    // Sync App Config
+    const configRef = doc(db, 'config', 'app');
+    const unsubAppConfig = onSnapshot(configRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const config = docSnap.data() as any;
+        console.log("App Config Loaded:", config);
+        setState(prev => ({ ...prev, appConfig: config, isConfigLoaded: true }));
+      } else {
+        console.log("App Config not found, using defaults");
+        // Default config if it doesn't exist yet
+        setState(prev => ({ 
+          ...prev, 
+          appConfig: {
+            publishedVersion: '1.1.3',
+            betaVersion: '1.1.3',
+            maintenanceMode: true
+          },
+          isConfigLoaded: true
+        }));
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'config/app');
+    });
+
+    // Fetch Global Stats
+    getGlobalStats().then(stats => {
+      if (stats) setGlobalStats(stats);
+    });
+
+    // Fetch Global Stats
+    getGlobalStats().then(stats => {
+      if (stats) setGlobalStats(stats);
+    });
+
+    return () => {
+      unsubConfig();
+      unsubEntries();
+      unsubAppConfig();
+    };
+  }, [user, isAuthReady]);
 
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -292,6 +371,20 @@ export default function App() {
     if (!user?.email) return false;
     return user.email.toLowerCase().trim() === 'leandrosolon@gmail.com';
   }, [user]);
+
+  // Test Connection
+  useEffect(() => {
+    async function testConnection() {
+      try {
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration.");
+        }
+      }
+    }
+    testConnection();
+  }, []);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -1031,7 +1124,7 @@ export default function App() {
             onStartWithExamples={handleStartWithExamples}
           />
         )}
-        {isAIVideoStudioOpen && (
+        {isAdmin && isAIVideoStudioOpen && (
           <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
         {isEntryModalOpen && (

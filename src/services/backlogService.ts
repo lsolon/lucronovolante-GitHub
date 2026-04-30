@@ -8,8 +8,7 @@ import {
   orderBy, 
   serverTimestamp, 
   Timestamp,
-  updateDoc,
-  limit
+  updateDoc
 } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { BacklogItem } from '../types';
@@ -62,7 +61,7 @@ export async function addBacklogItem(text: string): Promise<void> {
 
 export async function getBacklogItems(): Promise<BacklogItem[]> {
   try {
-    const q = query(collection(db, BACKLOG_COLLECTION), orderBy('createdAt', 'desc'), limit(50));
+    const q = query(collection(db, BACKLOG_COLLECTION), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => ({
       id: doc.id,

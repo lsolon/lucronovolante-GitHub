@@ -48,11 +48,5 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  
-  if (errInfo.error.includes("Quota") || errInfo.error.includes("exceeded")) {
-    window.dispatchEvent(new CustomEvent('app-quota-error', { detail: errInfo }));
-    return; // Do not throw uncaught async error
-  }
-  
   throw new Error(JSON.stringify(errInfo));
 }

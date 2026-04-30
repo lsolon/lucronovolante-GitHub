@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertCircle, RefreshCcw } from 'lucide-react';
-import SystemMaintenance from './SystemMaintenance';
 
 interface Props {
   children: ReactNode;
@@ -20,18 +19,6 @@ export default class ErrorBoundary extends React.Component<Props, State> {
     };
   }
 
-  public componentDidMount() {
-    window.addEventListener('app-quota-error', this.handleQuotaError as EventListener);
-  }
-
-  public componentWillUnmount() {
-    window.removeEventListener('app-quota-error', this.handleQuotaError as EventListener);
-  }
-
-  private handleQuotaError = (event: CustomEvent) => {
-    this.setState({ hasError: true, error: new Error(JSON.stringify(event.detail)) });
-  };
-
   public static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
@@ -47,23 +34,14 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
       try {
         if (this.state.error?.message) {
-          try {
-            const parsed = JSON.parse(this.state.error.message);
-            if (parsed.error) {
-              details = parsed.error;
-            }
-          } catch (e) {
-            details = this.state.error.message;
+          const parsed = JSON.parse(this.state.error.message);
+          if (parsed.error) {
+            message = "Erro de permissão ou conexão com o banco de dados.";
+            details = parsed.error;
           }
-
-          if (details.includes("Quota") || details.includes("Quota limit exceeded")) {
-             return <SystemMaintenance />;
-          }
-
-          message = "Erro de permissão ou conexão com o banco de dados.";
         }
       } catch (e) {
-        // Fallback
+        // Not a JSON error
         message = this.state.error?.message || message;
       }
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Share2, FileText, ChevronLeft, Trash2 } from 'lucide-react';
 import { auth, db } from '../firebase';
-import { collection, query, orderBy, getDocs, doc, deleteDoc, limit } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc, deleteDoc } from 'firebase/firestore';
 import { AICampaign } from '../types';
 
 export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
@@ -14,7 +14,7 @@ export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
       if (!auth.currentUser) return;
       try {
         const campaignsCollectionRef = collection(db, 'users', auth.currentUser.uid, 'campaigns');
-        const q = query(campaignsCollectionRef, orderBy('createdAt', 'desc'), limit(50));
+        const q = query(campaignsCollectionRef, orderBy('createdAt', 'desc'));
         const querySnapshot = await getDocs(q);
         const campaignsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AICampaign));
         setCampaigns(campaignsData);
