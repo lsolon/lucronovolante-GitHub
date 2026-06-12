@@ -1,0 +1,475 @@
+src/components/SettingsView.tsx-183-      }
+src/components/SettingsView.tsx-184-
+src/components/SettingsView.tsx:185:      const importedEntries: Entry[] = rows.map(row => ({
+src/components/SettingsView.tsx-186-        id: crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15),
+src/components/SettingsView.tsx-187-        ...mapAppSheetToEntry(row, categories, earningCategories, currentMapping)
+--
+src/components/SettingsView.tsx-210-    setImportStatus(null);
+src/components/SettingsView.tsx-211-    try {
+src/components/SettingsView.tsx:212:      const rows = entries.map(entry => 
+src/components/SettingsView.tsx-213-        mapEntryToAppSheet(entry, categories, earningCategories, currentMapping)
+src/components/SettingsView.tsx-214-      );
+--
+src/components/SettingsView.tsx-231-  const handleExportExcel = () => {
+src/components/SettingsView.tsx-232-    try {
+src/components/SettingsView.tsx:233:      const dataToExport = entries.map(entry => {
+src/components/SettingsView.tsx-234-        const category = categories.find(c => c.id === entry.categoriaId);
+src/components/SettingsView.tsx-235-        const base = {
+--
+src/components/SettingsView.tsx-307-        }
+src/components/SettingsView.tsx-308-
+src/components/SettingsView.tsx:309:        const importedEntries: Entry[] = jsonData.map(row => {
+src/components/SettingsView.tsx-310-          let entryData = row.Data;
+src/components/SettingsView.tsx-311-          let timePart = '';
+--
+src/components/SettingsView.tsx-631-              
+src/components/SettingsView.tsx-632-              <div className="space-y-3">
+src/components/SettingsView.tsx:633:                {maintenanceIntervals.map((interval, idx) => (
+src/components/SettingsView.tsx-634-                  <div key={`${interval.id}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+src/components/SettingsView.tsx-635-                    <div className="flex items-center justify-between">
+--
+src/components/SettingsView.tsx-652-                        value={interval.intervaloKm}
+src/components/SettingsView.tsx-653-                        onChange={(e) => {
+src/components/SettingsView.tsx:654:                          const newIntervals = maintenanceIntervals.map(m => 
+src/components/SettingsView.tsx-655-                            m.id === interval.id ? { ...m, intervaloKm: Number(e.target.value) } : m
+src/components/SettingsView.tsx-656-                          );
+--
+src/components/SettingsView.tsx-1305-    const prevMonthStr = format(prevMonth, 'yyyy-MM');
+src/components/SettingsView.tsx-1306-
+src/components/SettingsView.tsx:1307:    const updatedCosts = costs.map(c => {
+src/components/SettingsView.tsx-1308-      if (c.id === id) {
+src/components/SettingsView.tsx-1309-        return { ...c, dataFim: prevMonthStr };
+--
+src/components/SettingsView.tsx-1350-
+src/components/SettingsView.tsx-1351-      <div className="space-y-3">
+src/components/SettingsView.tsx:1352:        {displayCosts.map((cost, idx) => {
+src/components/SettingsView.tsx-1353-          const style = getCategoryStyle(cost.item);
+src/components/SettingsView.tsx-1354-          const isHistorical = cost.dataFim && cost.dataFim < currentMonthStr;
+--
+src/components/SettingsView.tsx-1511-    <div className="space-y-4">
+src/components/SettingsView.tsx-1512-      <div className="space-y-3">
+src/components/SettingsView.tsx:1513:        {categories.map((cat, idx) => {
+src/components/SettingsView.tsx-1514-          const style = getCategoryStyle(cat.nome);
+src/components/SettingsView.tsx-1515-          return (
+--
+src/components/SettingsView.tsx-1586-    <div className="space-y-4">
+src/components/SettingsView.tsx-1587-      <div className="space-y-3">
+src/components/SettingsView.tsx:1588:        {categories.filter(c => !c.parentId).map((cat, idx) => {
+src/components/SettingsView.tsx-1589-          const style = getCategoryStyle(cat.nome);
+src/components/SettingsView.tsx-1590-          const isSystem = cat.id === '10'; // Fechamento do Dia
+--
+src/components/SettingsView.tsx-1612-              {children.length > 0 && (
+src/components/SettingsView.tsx-1613-                <div className="ml-8 space-y-2 border-l-2 border-slate-100 pl-4">
+src/components/SettingsView.tsx:1614:                  {children.map((child, idx) => {
+src/components/SettingsView.tsx-1615-                    const childStyle = getCategoryStyle(child.nome);
+src/components/SettingsView.tsx-1616-                    return (
+--
+src/components/SettingsView.tsx-1660-            >
+src/components/SettingsView.tsx-1661-              <option key="empty-parent" value="">Nenhuma (Categoria Principal)</option>
+src/components/SettingsView.tsx:1662:              {parentCategories.map((cat, idx) => (
+src/components/SettingsView.tsx-1663-                <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+src/components/SettingsView.tsx-1664-              ))}
+--
+src/components/SettingsView.tsx-1688-      >
+src/components/SettingsView.tsx-1689-        <option key="auto-opt" value="">Automático (Heurística)</option>
+src/components/SettingsView.tsx:1690:        {options.map((opt, idx) => (
+src/components/SettingsView.tsx-1691-          <option key={`${opt}-${idx}`} value={opt}>{opt}</option>
+src/components/SettingsView.tsx-1692-        ))}
+--
+src/components/SettingsView.tsx-1823-          <p className="text-center text-xs text-slate-400 py-4">Carregando ideias...</p>
+src/components/SettingsView.tsx-1824-        ) : items.length > 0 ? (
+src/components/SettingsView.tsx:1825:          items.map((item, idx) => (
+src/components/SettingsView.tsx-1826-            <div key={`${item.id}-${idx}`} className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+src/components/SettingsView.tsx-1827-              <button 
+--
+src/components/SettingsView.tsx-1902-          </thead>
+src/components/SettingsView.tsx-1903-          <tbody>
+src/components/SettingsView.tsx:1904:            {users.map((u, idx) => (
+src/components/SettingsView.tsx-1905-              <tr key={`${u.id}-${idx}`} className="border-b border-slate-50 last:border-0">
+src/components/SettingsView.tsx-1906-                <td className="py-4">
+--
+src/components/MaintenanceView.tsx-27-}: MaintenanceViewProps) {
+src/components/MaintenanceView.tsx-28-  const maintenanceStatus = useMemo(() => {
+src/components/MaintenanceView.tsx:29:    return maintenanceIntervals.map(interval => {
+src/components/MaintenanceView.tsx-30-      const lastEntry = entries.find(e => {
+src/components/MaintenanceView.tsx-31-        const cat = categories.find(c => c.id === e.categoriaId);
+--
+src/components/MaintenanceView.tsx-98-            <AlertCircle size={14} /> Itens Críticos
+src/components/MaintenanceView.tsx-99-          </h3>
+src/components/MaintenanceView.tsx:100:          {criticalItems.map((item, idx) => (
+src/components/MaintenanceView.tsx-101-            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/MaintenanceView.tsx-102-          ))}
+--
+src/components/MaintenanceView.tsx-109-            <Info size={14} /> Atenção Necessária
+src/components/MaintenanceView.tsx-110-          </h3>
+src/components/MaintenanceView.tsx:111:          {warningItems.map((item, idx) => (
+src/components/MaintenanceView.tsx-112-            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/MaintenanceView.tsx-113-          ))}
+--
+src/components/MaintenanceView.tsx-119-          <CheckCircle2 size={14} /> Itens em Dia / Sem Registro
+src/components/MaintenanceView.tsx-120-        </h3>
+src/components/MaintenanceView.tsx:121:        {healthyItems.map((item, idx) => (
+src/components/MaintenanceView.tsx-122-          <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/MaintenanceView.tsx-123-        ))}
+--
+src/components/EntryForm.tsx-610-      {tipo === 'Ganhos' ? (
+src/components/EntryForm.tsx-611-        <div className="space-y-4">
+src/components/EntryForm.tsx:612:          {earningCategories.map((cat, idx) => (
+src/components/EntryForm.tsx-613-            <InputGroup 
+src/components/EntryForm.tsx-614-              key={`${cat.id}-${idx}`}
+--
+src/components/EntryForm.tsx-654-                className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
+src/components/EntryForm.tsx-655-              >
+src/components/EntryForm.tsx:656:                {categories.filter(c => !c.parentId && c.nome !== 'Fechamento do Dia').map((parent, idx) => {
+src/components/EntryForm.tsx-657-                  const children = categories.filter(c => c.parentId === parent.id);
+src/components/EntryForm.tsx-658-                  if (children.length > 0) {
+--
+src/components/EntryForm.tsx-660-                      <optgroup key={`${parent.id}-${idx}`} label={parent.nome}>
+src/components/EntryForm.tsx-661-                        <option key={`parent-geral-${parent.id}`} value={parent.id}>{parent.nome} (Geral)</option>
+src/components/EntryForm.tsx:662:                        {children.map((child, cIdx) => (
+src/components/EntryForm.tsx-663-                          <option key={`${child.id}-${cIdx}`} value={child.id}>{child.nome}</option>
+src/components/EntryForm.tsx-664-                        ))}
+--
+src/components/EntryForm.tsx-702-                  >
+src/components/EntryForm.tsx-703-                    <option key="empty-station" value="">Selecione o Posto</option>
+src/components/EntryForm.tsx:704:                    {GAS_STATIONS.map((posto, idx) => (
+src/components/EntryForm.tsx-705-                      <option key={`${posto}-${idx}`} value={posto}>
+src/components/EntryForm.tsx-706-                        {posto}
+--
+src/components/EntryForm.tsx-717-                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Tipo de Combustível</label>
+src/components/EntryForm.tsx-718-                <div className="grid grid-cols-3 gap-3">
+src/components/EntryForm.tsx:719:                  {['Gasolina', 'Etanol', 'GNV'].map((type, idx) => (
+src/components/EntryForm.tsx-720-                    <button
+src/components/EntryForm.tsx-721-                      key={`${type}-${idx}`}
+--
+src/components/EntryForm.tsx-1104-       <span className="text-xs font-bold text-slate-700">{label}</span>
+src/components/EntryForm.tsx-1105-       <div className="flex gap-1">
+src/components/EntryForm.tsx:1106:         {[1, 2, 3, 4, 5].map((star) => (
+src/components/EntryForm.tsx-1107-           <button
+src/components/EntryForm.tsx-1108-             key={star}
+--
+src/components/Dashboard.tsx-103-    
+src/components/Dashboard.tsx-104-    return Object.entries(grouped)
+src/components/Dashboard.tsx:105:      .map(([name, total]) => ({ name, total }))
+src/components/Dashboard.tsx-106-      .sort((a, b) => b.total - a.total);
+src/components/Dashboard.tsx-107-  }, [entries, modalType, currentMonthAlt, categories]);
+--
+src/components/Dashboard.tsx-119-
+src/components/Dashboard.tsx-120-    const workedDays = new Set(
+src/components/Dashboard.tsx:121:      currentMonthEntries.filter(e => e.tipo === 'Ganhos').map(e => e.data)
+src/components/Dashboard.tsx-122-    ).size;
+src/components/Dashboard.tsx-123-    if (workedDays === 0) return null;
+--
+src/components/Dashboard.tsx-180-
+src/components/Dashboard.tsx-181-  const maintenanceStatus = useMemo(() => {
+src/components/Dashboard.tsx:182:    return maintenanceIntervals.map(interval => {
+src/components/Dashboard.tsx-183-      // Find the last entry for this maintenance item
+src/components/Dashboard.tsx-184-      const lastEntry = entries.find(e => {
+--
+src/components/Dashboard.tsx-566-                <p className="text-[10px] text-blue-200 font-black uppercase mb-2">Custos Fixos Pagos</p>
+src/components/Dashboard.tsx-567-                <div className="space-y-1">
+src/components/Dashboard.tsx:568:                  {totals.paidFixedCostsDetails.map((pf, idx) => (
+src/components/Dashboard.tsx-569-                    <div key={`pf-${pf.item}-${pf.data}-${idx}`} className="flex justify-between text-xs text-emerald-400 font-medium">
+src/components/Dashboard.tsx-570-                      <span>{pf.item} ({pf.data.replace(/\//g, '-')})</span>
+--
+src/components/Dashboard.tsx-625-        <div className="space-y-3">
+src/components/Dashboard.tsx-626-          {activeFixedCosts.length > 0 ? (
+src/components/Dashboard.tsx:627:            activeFixedCosts.map((cost, idx) => {
+src/components/Dashboard.tsx-628-              const style = getCategoryStyle(cost.item);
+src/components/Dashboard.tsx-629-              return (
+--
+src/components/Dashboard.tsx-766-                {detailsList.length > 0 ? (
+src/components/Dashboard.tsx-767-                  <div className="space-y-3">
+src/components/Dashboard.tsx:768:                    {detailsList.map((item, idx) => (
+src/components/Dashboard.tsx-769-                      <div key={`detail-${item.name}-${idx}`} className="flex justify-between items-center p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
+src/components/Dashboard.tsx-770-                        <span className="font-bold text-slate-700">{item.name}</span>
+--
+src/components/CampaignsHistory.tsx-17-        const q = query(campaignsCollectionRef, orderBy('createdAt', 'desc'));
+src/components/CampaignsHistory.tsx-18-        const querySnapshot = await getDocs(q);
+src/components/CampaignsHistory.tsx:19:        const campaignsData = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as AICampaign));
+src/components/CampaignsHistory.tsx-20-        setCampaigns(campaignsData);
+src/components/CampaignsHistory.tsx-21-      } catch (error) {
+--
+src/components/CampaignsHistory.tsx-52-        ) : (
+src/components/CampaignsHistory.tsx-53-          <div className="space-y-4">
+src/components/CampaignsHistory.tsx:54:            {campaigns.map((c, idx) => (
+src/components/CampaignsHistory.tsx-55-              <div key={`${c.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-lg">
+src/components/CampaignsHistory.tsx-56-                <h3 className="font-bold text-gray-800 mb-2">{c.title}</h3>
+--
+src/components/ReportsView.tsx-129-      });
+src/components/ReportsView.tsx-130-
+src/components/ReportsView.tsx:131:      data = days.map(day => {
+src/components/ReportsView.tsx-132-        const dayEntries = entries.filter(e => {
+src/components/ReportsView.tsx-133-          const eDate = parseEntryDate(e.data);
+--
+src/components/ReportsView.tsx-138-        const expenses = dayEntries.filter(e => e.tipo === 'Despesa').reduce((acc, e) => acc + (e.valor || 0), 0);
+src/components/ReportsView.tsx-139-        
+src/components/ReportsView.tsx:140:        const kms = dayEntries.filter(e => e.km).map(e => e.km as number);
+src/components/ReportsView.tsx-141-        const kmPercorrido = kms.length > 1 ? Math.max(...kms) - Math.min(...kms) : 0;
+src/components/ReportsView.tsx-142-
+--
+src/components/ReportsView.tsx-170-
+src/components/ReportsView.tsx-171-        const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+src/components/ReportsView.tsx:172:        data = days.map((dayName, dayIdx) => {
+src/components/ReportsView.tsx-173-          const dayEntries = periodEntries.filter(e => {
+src/components/ReportsView.tsx-174-            const eDate = parseEntryDate(e.data);
+--
+src/components/ReportsView.tsx-179-          const expenses = dayEntries.filter(e => e.tipo === 'Despesa').reduce((acc, e) => acc + (e.valor || 0), 0);
+src/components/ReportsView.tsx-180-          
+src/components/ReportsView.tsx:181:          const kms = dayEntries.filter(e => e.km).map(e => e.km as number);
+src/components/ReportsView.tsx-182-          const kmPercorrido = kms.length > 1 ? Math.max(...kms) - Math.min(...kms) : 0;
+src/components/ReportsView.tsx-183-
+--
+src/components/ReportsView.tsx-195-        const weeks = eachWeekOfInterval({ start, end }, { locale: ptBR });
+src/components/ReportsView.tsx-196-
+src/components/ReportsView.tsx:197:        data = weeks.map((week, idx) => {
+src/components/ReportsView.tsx-198-          const weekEntries = entries.filter(e => {
+src/components/ReportsView.tsx-199-            const eDate = parseEntryDate(e.data);
+--
+src/components/ReportsView.tsx-204-          const expenses = weekEntries.filter(e => e.tipo === 'Despesa').reduce((acc, e) => acc + (e.valor || 0), 0);
+src/components/ReportsView.tsx-205-          
+src/components/ReportsView.tsx:206:          const kms = weekEntries.filter(e => e.km).map(e => e.km as number);
+src/components/ReportsView.tsx-207-          const kmPercorrido = kms.length > 1 ? Math.max(...kms) - Math.min(...kms) : 0;
+src/components/ReportsView.tsx-208-
+--
+src/components/ReportsView.tsx-225-      });
+src/components/ReportsView.tsx-226-
+src/components/ReportsView.tsx:227:      data = days.map(day => {
+src/components/ReportsView.tsx-228-        const dayEntries = entries.filter(e => {
+src/components/ReportsView.tsx-229-          const eDate = parseEntryDate(e.data);
+--
+src/components/ReportsView.tsx-234-        const expenses = dayEntries.filter(e => e.tipo === 'Despesa').reduce((acc, e) => acc + (e.valor || 0), 0);
+src/components/ReportsView.tsx-235-        
+src/components/ReportsView.tsx:236:        const kms = dayEntries.filter(e => e.km).map(e => e.km as number);
+src/components/ReportsView.tsx-237-        const kmPercorrido = kms.length > 1 ? Math.max(...kms) - Math.min(...kms) : 0;
+src/components/ReportsView.tsx-238-
+--
+src/components/ReportsView.tsx-254-      });
+src/components/ReportsView.tsx-255-
+src/components/ReportsView.tsx:256:      data = months.map(month => {
+src/components/ReportsView.tsx-257-        const monthEntries = entries.filter(e => {
+src/components/ReportsView.tsx-258-          const eDate = parseEntryDate(e.data);
+--
+src/components/ReportsView.tsx-263-        const expenses = monthEntries.filter(e => e.tipo === 'Despesa').reduce((acc, e) => acc + (e.valor || 0), 0);
+src/components/ReportsView.tsx-264-        
+src/components/ReportsView.tsx:265:        const kms = monthEntries.filter(e => e.km).map(e => e.km as number);
+src/components/ReportsView.tsx-266-        const kmPercorrido = kms.length > 1 ? Math.max(...kms) - Math.min(...kms) : 0;
+src/components/ReportsView.tsx-267-
+--
+src/components/ReportsView.tsx-292-    const breakdown = categories
+src/components/ReportsView.tsx-293-      .filter(c => c.nome !== 'Fechamento do Dia')
+src/components/ReportsView.tsx:294:      .map(cat => {
+src/components/ReportsView.tsx-295-        const amount = expensesOnly
+src/components/ReportsView.tsx-296-          .filter(e => e.categoriaId === cat.id)
+--
+src/components/ReportsView.tsx-314-      const eDate = parseEntryDate(e.data);
+src/components/ReportsView.tsx-315-      return isWithinInterval(eDate, currentInterval) && e.km;
+src/components/ReportsView.tsx:316:    }).map(e => e.km as number);
+src/components/ReportsView.tsx-317-
+src/components/ReportsView.tsx-318-    const totalKmPercorrido = periodKms.length > 1 ? Math.max(...periodKms) - Math.min(...periodKms) : 0;
+--
+src/components/ReportsView.tsx-458-      <div className="space-y-3">
+src/components/ReportsView.tsx-459-        <div className="flex p-1 bg-slate-100 rounded-2xl">
+src/components/ReportsView.tsx:460:          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((p, idx) => (
+src/components/ReportsView.tsx-461-            <button
+src/components/ReportsView.tsx-462-              key={`${p}-${idx}`}
+--
+src/components/ReportsView.tsx-478-          <div className="space-y-2">
+src/components/ReportsView.tsx-479-            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+src/components/ReportsView.tsx:480:              {[4, 8, 12, 'month'].map((r, idx) => (
+src/components/ReportsView.tsx-481-                <button
+src/components/ReportsView.tsx-482-                  key={`${r}-${idx}`}
+--
+src/components/ReportsView.tsx-749-                    dataKey="amount"
+src/components/ReportsView.tsx-750-                  >
+src/components/ReportsView.tsx:751:                    {categoryBreakdown.breakdown.map((entry, idx) => (
+src/components/ReportsView.tsx-752-                      <Cell key={`cell-${entry.id}-${idx}`} fill={COLORS[idx % COLORS.length]} />
+src/components/ReportsView.tsx-753-                    ))}
+--
+src/components/ReportsView.tsx-767-
+src/components/ReportsView.tsx-768-            <div className="space-y-4">
+src/components/ReportsView.tsx:769:              {categoryBreakdown.breakdown.map((item, index) => (
+src/components/ReportsView.tsx-770-                <div key={`breakdown-${item.id}-${index}`} className="space-y-1.5">
+src/components/ReportsView.tsx-771-                  <div className="flex justify-between text-xs font-bold">
+--
+src/components/ReportsView.tsx-806-      <div className="space-y-3">
+src/components/ReportsView.tsx-807-        <h3 className="font-bold text-white ml-1">Detalhamento</h3>
+src/components/ReportsView.tsx:808:        {reportData.slice().reverse().map((item, idx) => (
+src/components/ReportsView.tsx-809-          <div key={`report-${item.name}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+src/components/ReportsView.tsx-810-            <div>
+--
+src/components/ReportsView.tsx-912-                      return acc;
+src/components/ReportsView.tsx-913-                    }, {})
+src/components/ReportsView.tsx:914:                  ).map(([groupName, groupEntries], idx) => {
+src/components/ReportsView.tsx-915-                    const style = getCategoryStyle(groupName);
+src/components/ReportsView.tsx-916-                    const groupTotal = groupEntries.reduce((acc, e) => acc + (e.valor || 0), 0);
+--
+src/components/ReportsView.tsx-930-                        </div>
+src/components/ReportsView.tsx-931-                        <div className="space-y-2">
+src/components/ReportsView.tsx:932:                          {groupEntries.map((entry, idx) => (
+src/components/ReportsView.tsx-933-                            <div key={`${entry.id}-${idx}`} className="flex justify-between items-center text-[10px]">
+src/components/ReportsView.tsx-934-                              <span className="text-slate-500 font-medium">{format(parseEntryDate(entry.data), 'dd/MM/yyyy')}</span>
+--
+src/components/ReportsView.tsx-945-                ) : (
+src/components/ReportsView.tsx-946-                  // Simple List View
+src/components/ReportsView.tsx:947:                  drillDown.entries.map((entry, idx) => {
+src/components/ReportsView.tsx-948-                    const category = categories.find(c => c.id === entry.categoriaId);
+src/components/ReportsView.tsx-949-                    const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
+--
+src/components/AIVideoStudio.tsx-187-      } else {
+src/components/AIVideoStudio.tsx-188-        // Text Generation (Chat)
+src/components/AIVideoStudio.tsx:189:        const history = messages.map(m => ({
+src/components/AIVideoStudio.tsx-190-          role: m.role === 'user' ? 'user' : 'model',
+src/components/AIVideoStudio.tsx-191-          parts: [{ text: m.text }]
+--
+src/components/AIVideoStudio.tsx-370-
+src/components/AIVideoStudio.tsx-371-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+src/components/AIVideoStudio.tsx:372:                {SUGGESTIONS.map((s, i) => (
+src/components/AIVideoStudio.tsx-373-                  <button
+src/components/AIVideoStudio.tsx-374-                    key={`sugg-${s.title}-${i}`}
+--
+src/components/AIVideoStudio.tsx-387-          )}
+src/components/AIVideoStudio.tsx-388-
+src/components/AIVideoStudio.tsx:389:          {messages.map((m, i) => (
+src/components/AIVideoStudio.tsx-390-            <motion.div
+src/components/AIVideoStudio.tsx-391-              initial={{ opacity: 0, y: 10 }}
+--
+src/components/FuelMap.tsx-97-      }
+src/components/FuelMap.tsx-98-      return true;
+src/components/FuelMap.tsx:99:    }).map(e => {
+src/components/FuelMap.tsx-100-      if (e.gps && !e.location) {
+src/components/FuelMap.tsx:101:        const [lat, lng] = e.gps.split(',').map(Number);
+src/components/FuelMap.tsx-102-        return { ...e, location: { lat, lng, address: e.endereco } };
+src/components/FuelMap.tsx-103-      }
+--
+src/components/FuelMap.tsx-116-  const mapBounds = useMemo(() => {
+src/components/FuelMap.tsx-117-    if (mappedEntries.length === 0) return undefined;
+src/components/FuelMap.tsx:118:    const points = mappedEntries.map(e => [e.location!.lat, e.location!.lng] as [number, number]);
+src/components/FuelMap.tsx-119-    try {
+src/components/FuelMap.tsx-120-      return L.latLngBounds(points);
+--
+src/components/FuelMap.tsx-311-          )}
+src/components/FuelMap.tsx-312-
+src/components/FuelMap.tsx:313:          {mappedEntries.map((entry, idx) => {
+src/components/FuelMap.tsx-314-            const cat = categories.find(c => c.id === entry.categoriaId);
+src/components/FuelMap.tsx-315-            const style = getCategoryStyle(cat?.nome || '');
+--
+src/components/FuelMap.tsx-477-                 </div>
+src/components/FuelMap.tsx-478-               ) : (
+src/components/FuelMap.tsx:479:                 stationsList.map((station, index) => (
+src/components/FuelMap.tsx-480-                   <div key={`${station.id}-${index}`} className="bg-white border text-left border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
+src/components/FuelMap.tsx-481-                     {index === 0 && sortBy === 'price' && station.pricePerLiter > 0 && (
+--
+src/components/TutorialModal.tsx-146-            {/* Progress Dots */}
+src/components/TutorialModal.tsx-147-            <div className="flex justify-center gap-2">
+src/components/TutorialModal.tsx:148:              {steps.map((_, idx) => (
+src/components/TutorialModal.tsx-149-                <div 
+src/components/TutorialModal.tsx-150-                  key={`dot-${idx}`}
+--
+src/components/EntryList.tsx-196-                >
+src/components/EntryList.tsx-197-                  <option key="all" value="all">Todas</option>
+src/components/EntryList.tsx:198:                  {categories.map((cat, idx) => (
+src/components/EntryList.tsx-199-                    <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+src/components/EntryList.tsx-200-                  ))}
+--
+src/components/EntryList.tsx-273-      ) : (
+src/components/EntryList.tsx-274-        <div className="space-y-3">
+src/components/EntryList.tsx:275:          {filteredEntries.map((entry, index) => {
+src/components/EntryList.tsx-276-          const category = categories.find(c => c.id === entry.categoriaId);
+src/components/EntryList.tsx-277-          const date = parseEntryDate(entry.data);
+--
+src/components/EntryList.tsx-584-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Detalhamento por Plataforma</h4>
+src/components/EntryList.tsx-585-                  <div className="bg-slate-50 rounded-3xl p-4 space-y-3 border border-slate-100">
+src/components/EntryList.tsx:586:                    {Object.entries(selectedEntry.ganhos).map(([catId, val], idx) => {
+src/components/EntryList.tsx-587-                      const cat = categories.find(c => c.id === catId);
+src/components/EntryList.tsx-588-                      if (!val) return null;
+--
+src/components/DashboardGraphics.tsx-41-
+src/components/DashboardGraphics.tsx-42-  const weeklyData = useMemo(() => {
+src/components/DashboardGraphics.tsx:43:    return weekDates.map(date => {
+src/components/DashboardGraphics.tsx-44-        const dayEntries = weekEntries.filter(e => e.data === date);
+src/components/DashboardGraphics.tsx-45-        const [y, m, d] = date.split('/');
+--
+src/components/DashboardGraphics.tsx-65-    return categories
+src/components/DashboardGraphics.tsx-66-      .filter(cat => categoryTotals[cat.id] > 0)
+src/components/DashboardGraphics.tsx:67:      .map(cat => ({
+src/components/DashboardGraphics.tsx-68-        name: cat.nome,
+src/components/DashboardGraphics.tsx-69-        amount: categoryTotals[cat.id] || 0,
+--
+src/components/DashboardGraphics.tsx-98-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+src/components/DashboardGraphics.tsx-99-                  <Bar dataKey="ganho" radius={[4, 4, 0, 0]}>
+src/components/DashboardGraphics.tsx:100:                    {weeklyData.map((entry, idx) => (
+src/components/DashboardGraphics.tsx-101-                      <Cell key={`ganho-${entry.name}-${idx}`} fill="#22c55e" />
+src/components/DashboardGraphics.tsx-102-                    ))}
+--
+src/components/DashboardGraphics.tsx-115-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 10}} />
+src/components/DashboardGraphics.tsx-116-                  <Bar dataKey="despesa" radius={[4, 4, 0, 0]}>
+src/components/DashboardGraphics.tsx:117:                    {weeklyData.map((entry, idx) => (
+src/components/DashboardGraphics.tsx-118-                      <Cell key={`despesa-${entry.name}-${idx}`} fill="#f43f5e" />
+src/components/DashboardGraphics.tsx-119-                    ))}
+--
+src/components/DashboardGraphics.tsx-131-        <h3 className="text-lg font-bold mb-4">Detalhes das Despesas</h3>
+src/components/DashboardGraphics.tsx-132-        <div className="space-y-4">
+src/components/DashboardGraphics.tsx:133:          {expenseDetails.map((detail, index) => (
+src/components/DashboardGraphics.tsx-134-            <div key={`expense-${detail.name}-${index}`} className="flex items-center justify-between">
+src/components/DashboardGraphics.tsx-135-              <div className="flex items-center gap-2">
+--
+src/lib/utils.ts-37-  // Handle arrays
+src/lib/utils.ts-38-  if (Array.isArray(obj)) {
+src/lib/utils.ts:39:    return obj.map(item => cleanObject(item)) as any;
+src/lib/utils.ts-40-  }
+src/lib/utils.ts-41-
+--
+src/lib/firestore-errors.ts-38-      isAnonymous: auth.currentUser?.isAnonymous,
+src/lib/firestore-errors.ts-39-      tenantId: auth.currentUser?.tenantId,
+src/lib/firestore-errors.ts:40:      providerInfo: auth.currentUser?.providerData.map(provider => ({
+src/lib/firestore-errors.ts-41-        providerId: provider.providerId,
+src/lib/firestore-errors.ts-42-        displayName: provider.displayName,
+--
+src/services/statsService.ts-70-    
+src/services/statsService.ts-71-    return querySnapshot.docs
+src/services/statsService.ts:72:      .map(doc => {
+src/services/statsService.ts-73-        const data = doc.data();
+src/services/statsService.ts-74-        return {
+--
+src/services/backlogService.ts-34-      isAnonymous: auth.currentUser?.isAnonymous,
+src/services/backlogService.ts-35-      tenantId: auth.currentUser?.tenantId,
+src/services/backlogService.ts:36:      providerInfo: auth.currentUser?.providerData.map(provider => ({
+src/services/backlogService.ts-37-        providerId: provider.providerId,
+src/services/backlogService.ts-38-        displayName: provider.displayName,
+--
+src/services/backlogService.ts-64-    const q = query(collection(db, BACKLOG_COLLECTION), orderBy('createdAt', 'desc'));
+src/services/backlogService.ts-65-    const querySnapshot = await getDocs(q);
+src/services/backlogService.ts:66:    return querySnapshot.docs.map(doc => ({
+src/services/backlogService.ts-67-      id: doc.id,
+src/services/backlogService.ts-68-      ...doc.data(),
+--
+src/services/appsheetService.ts-160-    
+src/services/appsheetService.ts-161-    const rowKeys = Object.keys(row);
+src/services/appsheetService.ts:162:    const normalizedKeys = keys.map(normalize);
+src/services/appsheetService.ts-163-    
+src/services/appsheetService.ts-164-    for (const rk of rowKeys) {
+--
+src/App.tsx-363-    const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
+src/App.tsx-364-      console.log("App Initialization: Entries snapshot received, count:", snapshot.size);
+src/App.tsx:365:      const entriesData = snapshot.docs.map(doc => ({
+src/App.tsx-366-        ...doc.data(),
+src/App.tsx-367-        id: doc.id
+--
+src/App.tsx-538-
+src/App.tsx-539-    // Prepare detail of paid fixed costs
+src/App.tsx:540:    const paidFixedCostsDetails = fixedCostPayments.map(e => {
+src/App.tsx-541-        const cat = state.categories.find(c => c.id === e.categoriaId);
+src/App.tsx-542-        return {
+--
+src/App.tsx-595-        const TOLERANCE = 50.00;
+src/App.tsx-596-        return (fc.valorMensal - paidAmount) > TOLERANCE;
+src/App.tsx:597:    }).map(fc => fc.item);
+src/App.tsx-598-    
+src/App.tsx-599-    return { earnings, expenses, totalFixedCosts, paidFixedCostsSum, balance, progress, balanceToPay, dailyExpenses, todayEarnings, todayExpenses, paidFixedCostsDetails, unpaidFixedCosts, fixedCostPaymentIds };
+--
+src/App.tsx-608-    });
+src/App.tsx-609-    if (oilEntries.length === 0) return null;
+src/App.tsx:610:    const maxOilKm = Math.max(...oilEntries.map(e => e.km || 0));
+src/App.tsx-611-    return maxOilKm + oilInterval;
+src/App.tsx-612-  }, [state.entries, state.categories, state.maintenanceIntervals]);

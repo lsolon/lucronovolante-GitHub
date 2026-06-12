@@ -37,22 +37,33 @@ interface Message {
 const SYSTEM_PROMPT = `Você é o Diretor Criativo e Especialista em Marketing do aplicativo "LucroNoVolante".
 Seu objetivo é ajudar o usuário (um motorista de aplicativo) a criar materiais de divulgação virais e profissionais.
 
-O aplicativo LucroNoVolante ajuda motoristas a:
+O aplicativo LucroNoVolante (lucronovolante.app.br) ajuda motoristas a:
 1. Calcular o lucro real (Ganhos - Custos Fixos - Gastos de Rua).
 2. Bater metas diárias inteligentes (que incluem reserva de emergência).
 3. Controlar manutenção preventiva (óleo, pneus, etc).
 4. Sincronizar dados com AppSheet e Excel.
 
+Telas Principais para Divulgação:
+- Tela de Dashboard: Mostra o "Lucro Real do Mês", "Saldo Livre", "Meta Diária" e "Burden" (custo fixo por dia). É a tela mais importante.
+- Tela de Gráficos: Mostra o desempenho em barras e pizza (Ganhos vs Despesas).
+- Tela de Manutenção: Mostra o "KM Restante" para trocar óleo, pastilhas e pneus com barras de progresso coloridas.
+- Tela de Entrada de Dados: Interface limpa para digitar valores de Uber, 99 e abastecimento.
+
 Ao sugerir roteiros ou propagandas, foque em:
 - Dores do motorista (trabalhar muito e não ver a cor do dinheiro).
 - Soluções práticas (o app faz a conta chata por você).
-- Chamadas para ação (CTA) claras.
-- Formatos compartilháveis (mensagens curtas para WhatsApp, posts para Instagram, etc).
+- Chamadas para ação (CTA) claras como "Acesse lucronovolante.app.br".
+- Formatos compartilháveis (mensagens curtas para WhatsApp, posts para Instagram, TikTok, etc).
 
 Sempre responda em Português do Brasil, com um tom motivador, profissional e direto.
-Para "Propagandas Compartilháveis", use emojis e uma estrutura que funcione bem em grupos de WhatsApp.`;
+Para TikTok, sugira roteiros curtos (8-15s) com textos dinâmicos e prompts que descrevam as telas acima.`;
 
 const SUGGESTIONS = [
+  {
+    title: "Vídeo TikTok (8s)",
+    prompt: "Crie um roteiro de 8 segundos para TikTok focado na tela de Dashboard do app LucroNoVolante. Descreva o prompt para gerar um vídeo que mostre o 'Lucro Real' piscando e uma explicação de como isso muda o jogo para o motorista que não sabe quanto ganha de verdade.",
+    icon: <Smartphone className="size-4" />
+  },
   {
     title: "Gerar Vídeo Curto",
     prompt: "Gere um vídeo cinematográfico de 5 segundos de um carro de aplicativo dirigindo por uma cidade moderna ao pôr do sol, com luzes neon.",
@@ -73,11 +84,6 @@ const SUGGESTIONS = [
     prompt: "Crie um roteiro de 30 segundos para um Reels do Instagram focado na dor de não saber o lucro real no final do dia.",
     icon: <Clapperboard className="size-4" />
   },
-  {
-    title: "Convite de Indicação",
-    prompt: "Crie uma mensagem de convite para eu enviar para um colega motorista, explicando por que ele deveria usar o LucroNoVolante.",
-    icon: <Smartphone className="size-4" />
-  }
 ];
 
 import CampaignsHistory from './CampaignsHistory';
@@ -128,12 +134,24 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
                             text.toLowerCase().includes('foto') || 
                             text.toLowerCase().includes('desenhe');
       
+      const isTikTokRequest = text.toLowerCase().includes('tiktok') || 
+                             text.toLowerCase().includes('8 segundos');
+
       const isVideoRequest = text.toLowerCase().includes('vídeo') || 
                             text.toLowerCase().includes('video') || 
                             text.toLowerCase().includes('filme') ||
                             text.toLowerCase().includes('animação');
 
-      if (isVideoRequest) {
+      if (isTikTokRequest) {
+        setMessages(prev => [...prev, { 
+          role: 'model', 
+          text: `Aqui está um roteiro e prompt para o seu vídeo de TikTok de 8 segundos sobre o LucroNoVolante:\n\n` +
+          `Roteiro: [Crie um roteiro de 8 segundos focado em "${text}". Explique como essa tela ajuda o motorista de forma rápida e impactante.]\n\n` +
+          `Prompt de Geração de Vídeo: "${text} [Vídeo estilo TikTok/Reels, 9:16, alta qualidade, dinâmico, mostrando a interface do aplicativo LucroNoVolante ${text.includes('Cálculo') ? 'na tela de Cálculo de Lucro' : 'na tela principal'}.] - Instrução de edição: Adicione legendas grandes no centro da tela e o logotipo do 'LucroNoVolante' no topo."` 
+        }]);
+        setIsLoading(false);
+        return;
+      } else if (isVideoRequest) {
         setMessages(prev => [...prev, { 
           role: 'model', 
           text: "Aqui está um prompt detalhado e profissional para você usar em ferramentas externas de geração de vídeo:\n\n" + 
@@ -353,7 +371,7 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {SUGGESTIONS.map((s, i) => (
                   <button
-                    key={i}
+                    key={`sugg-${s.title}-${i}`}
                     onClick={() => handleSend(s.prompt)}
                     className="p-4 bg-white border border-slate-100 rounded-2xl text-left hover:border-blue-200 hover:shadow-md transition-all group"
                   >
@@ -372,7 +390,7 @@ export default function AIVideoStudio({ onClose }: { onClose: () => void }) {
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              key={i}
+              key={`msg-${i}-${m.role}`}
               className={cn(
                 "flex gap-4 max-w-[85%]",
                 m.role === 'user' ? "ml-auto flex-row-reverse" : "mr-auto"

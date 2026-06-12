@@ -27,10 +27,11 @@ import {
   X,
   BarChart3,
   LogIn,
-  MapPin
+  MapPin,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn, cleanObject, parseEntryDate, truncateLargeFields } from './lib/utils';
 import { Entry, FixedCost, Category, AppState, AppSheetMapping, MaintenanceInterval } from './types';
@@ -56,7 +57,8 @@ import {
   deleteDoc,
   getDoc,
   getDocFromServer,
-  writeBatch
+  writeBatch,
+  deleteField
 } from 'firebase/firestore';
 
 import { handleFirestoreError, OperationType } from './lib/firestore-errors';
@@ -68,6 +70,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import LandingPage from './components/LandingPage';
 import TrialExpiredView from './components/TrialExpiredView';
 import Dashboard from './components/Dashboard';
+import DashboardGraphics from './components/DashboardGraphics';
 import EntryForm from './components/EntryForm';
 import EntryList from './components/EntryList';
 import SettingsView from './components/SettingsView';
@@ -79,28 +82,37 @@ import PWAPrompt from './components/PWAPrompt';
 import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
+import ManualModal from './components/ManualModal';
 
 const APP_VERSION = '1.1.6';
  
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
+  const [isManualOpen, setIsManualOpen] = useState(false);
   
   useEffect(() => {
     async function testConnection() {
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
       } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
+        // Only log configuration warning if we suspect it's actually a config issue
+        // and NOT just a typical offline situation.
+        if (error instanceof Error) {
+          if (error.message.includes('the client is offline')) {
+            // Silence the "check configuration" warning when just offline,
+            // as Firestore handles offline gracefully.
+            console.log("Firestore is in offline mode.");
+          } else {
+            console.error("Firestore connectivity test failed:", error);
+          }
         }
-        console.error("Firestore connectivity test:", error);
       }
     }
     testConnection();
   }, []);
   
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'history' | 'map' | 'reports' | 'settings' | 'maintenance'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'graphics' | 'history' | 'map' | 'reports' | 'settings' | 'maintenance'>('dashboard');
   const [isEntryModalOpen, setIsEntryModalOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
@@ -126,8 +138,9 @@ export default function App() {
   // Force update if hardcoded app version changes
   useEffect(() => {
     const lastVersion = localStorage.getItem('app_version');
+    console.log("App Initialization: Checking app version", { current: APP_VERSION, stored: lastVersion });
     if (lastVersion && lastVersion !== APP_VERSION) {
-      console.log(`New version detected: ${APP_VERSION}. Clearing cache...`);
+      console.log(`New version detected: ${APP_VERSION}. Clearing cache and reloading...`);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
           for (let registration of registrations) {
@@ -156,7 +169,7 @@ export default function App() {
     
     // Only reload if the remote version changes mid-session or across sessions
     if (currentStoredVersion !== remoteVersion && !adminMode) {
-      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Clearing cache...`);
+      console.log(`Remote update detected! Old: ${currentStoredVersion}, New: ${remoteVersion}. Triggering reload...`);
       localStorage.setItem('remote_published_version', remoteVersion);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(registrations => {
@@ -169,6 +182,7 @@ export default function App() {
         window.location.reload();
       }
     } else {
+      console.log('No remote version update required.');
       // Just track it silently
       localStorage.setItem('remote_published_version', remoteVersion);
     }
@@ -207,6 +221,7 @@ export default function App() {
     });
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log("App Initialization: onAuthStateChanged triggered", { loggedIn: !!currentUser, uid: currentUser?.uid });
       setUser(currentUser);
       setIsAuthReady(true);
       if (currentUser) {
@@ -242,71 +257,141 @@ export default function App() {
     if (!user) return;
 
     // Sync User Config
+    console.log("App Initialization: Syncing User Config for", user.uid);
     const userDocRef = doc(db, 'users', user.uid);
     const unsubConfig = onSnapshot(userDocRef, (docSnap) => {
+      console.log("App Initialization: User Config snapshot received");
       if (docSnap.exists()) {
         const data = docSnap.data();
         
         // Merge categories to ensure new defaults (like subcategories) are added
         const userCategories = data.categories || [];
-        const mergedCategories = [...userCategories];
+        const mergedCategories: Category[] = [];
+        const seenCatIds = new Set<string>();
+        
+        for (const cat of userCategories) {
+          if (!seenCatIds.has(cat.id)) {
+            mergedCategories.push(cat);
+            seenCatIds.add(cat.id);
+          }
+        }
         
         DEFAULT_CATEGORIES.forEach(defaultCat => {
-          const exists = mergedCategories.some(c => c.id === defaultCat.id);
-          if (!exists) {
+          if (!seenCatIds.has(defaultCat.id)) {
             mergedCategories.push(defaultCat);
+            seenCatIds.add(defaultCat.id);
           }
         });
 
         // Merge maintenance intervals
         const userIntervals = data.maintenanceIntervals || [];
-        const mergedIntervals = [...userIntervals];
+        const mergedIntervals: MaintenanceInterval[] = [];
+        const seenIntervalIds = new Set<string>();
+        
+        for (const interval of userIntervals) {
+          if (!seenIntervalIds.has(interval.id)) {
+            mergedIntervals.push(interval);
+            seenIntervalIds.add(interval.id);
+          }
+        }
         
         DEFAULT_MAINTENANCE_INTERVALS.forEach(defaultInt => {
-          const exists = mergedIntervals.some(m => m.id === defaultInt.id);
-          if (!exists) {
+          if (!seenIntervalIds.has(defaultInt.id)) {
             mergedIntervals.push(defaultInt);
+            seenIntervalIds.add(defaultInt.id);
           }
         });
 
+        // Deduplicate fixed costs
+        const rawFixedCosts = data.fixedCosts || DEFAULT_FIXED_COSTS;
+        const uniqueFixedCosts: FixedCost[] = [];
+        const seenFixedIds = new Set<string>();
+        for (const fc of rawFixedCosts) {
+          if (!seenFixedIds.has(fc.id)) {
+            uniqueFixedCosts.push(fc);
+            seenFixedIds.add(fc.id);
+          }
+        }
+
+        // Deduplicate earning categories
+        const rawEarningCats = data.earningCategories || DEFAULT_EARNING_CATEGORIES;
+        const uniqueEarningCats: Category[] = [];
+        const seenEarningIds = new Set<string>();
+        for (const cat of rawEarningCats) {
+          if (!seenEarningIds.has(cat.id)) {
+            uniqueEarningCats.push(cat);
+            seenEarningIds.add(cat.id);
+          }
+        }
+
+        let trialStart = data.trialStartDate;
+        
+        if (user.email === 'leandrosolon0@gmail.com' && data.extendedTrial2026) {
+           const oldDate = new Date();
+           oldDate.setDate(oldDate.getDate() - 31);
+           trialStart = oldDate.toISOString();
+           setDoc(userDocRef, { trialStartDate: trialStart, extendedTrial2026: deleteField() }, { merge: true });
+        }
+
         setState(prev => ({
           ...prev,
-          fixedCosts: data.fixedCosts || DEFAULT_FIXED_COSTS,
+          fixedCosts: uniqueFixedCosts,
           categories: mergedCategories,
-          earningCategories: data.earningCategories || DEFAULT_EARNING_CATEGORIES,
+          earningCategories: uniqueEarningCats,
           currentKm: data.currentKm || 0,
           targetKm: data.targetKm || 0,
           maintenanceIntervals: mergedIntervals,
-          trialStartDate: data.trialStartDate,
+          trialStartDate: trialStart,
           appSheetMapping: data.appSheetMapping,
           hasSeenTutorial: data.hasSeenTutorial ?? false,
           tutorialOptOut: data.tutorialOptOut ?? false
         }));
       } else {
         // Initialize user doc if it doesn't exist
-        const now = new Date().toISOString();
-        setDoc(userDocRef, cleanObject({
-          email: user.email,
-          displayName: user.displayName,
-          fixedCosts: DEFAULT_FIXED_COSTS,
-          categories: DEFAULT_CATEGORIES,
-          earningCategories: DEFAULT_EARNING_CATEGORIES,
-          currentKm: 0,
-          targetKm: 0,
-          maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
-          trialStartDate: now,
-          visitCount: 1,
-          lastSeen: now,
-          tutorialOptOut: false
-        }), { merge: true });
+        // Note: Do not write arrays here because if this is triggered during an offline cache miss
+        // where docSnap.exists() is falsely reported as false, setDoc with merge:true will OVERWRITE 
+        // existing arrays in the cloud once reconnected.
+        const initializeUser = async () => {
+          let trialStart = new Date().toISOString();
+          
+          if (user.email) {
+            try {
+              const trialRef = doc(db, 'trials', user.email.toLowerCase());
+              const trialSnap = await getDocFromServer(trialRef).catch(() => getDoc(trialRef));
+              if (trialSnap.exists()) {
+                trialStart = trialSnap.data().trialStartDate;
+              } else {
+                await setDoc(trialRef, { trialStartDate: trialStart }, { merge: true });
+              }
+            } catch (err) {
+              console.warn("Could not fetch or set trial document", err);
+            }
+          }
+
+          const now = new Date().toISOString();
+          setDoc(userDocRef, cleanObject({
+            email: user.email,
+            displayName: user.displayName,
+            currentKm: 0,
+            targetKm: 0,
+            trialStartDate: trialStart,
+            visitCount: 1,
+            lastSeen: now,
+            tutorialOptOut: false
+          }), { merge: true });
+        };
+        
+        initializeUser();
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
     // Sync Entries
+    console.log("App Initialization: Syncing Entries for", user.uid);
     const entriesRef = collection(db, 'users', user.uid, 'entries');
     const unsubEntries = onSnapshot(entriesRef, (snapshot) => {
+      console.log("App Initialization: Entries snapshot received, count:", snapshot.size);
       const entriesData = snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id
@@ -325,6 +410,7 @@ export default function App() {
     });
 
     // Sync App Config
+    console.log("App Initialization: Syncing global App Config");
     const configRef = doc(db, 'config', 'app');
     const unsubAppConfig = onSnapshot(configRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -353,11 +439,6 @@ export default function App() {
       if (stats) setGlobalStats(stats);
     });
 
-    // Fetch Global Stats
-    getGlobalStats().then(stats => {
-      if (stats) setGlobalStats(stats);
-    });
-
     return () => {
       unsubConfig();
       unsubEntries();
@@ -371,20 +452,6 @@ export default function App() {
     if (!user?.email) return false;
     return user.email.toLowerCase().trim() === 'leandrosolon@gmail.com';
   }, [user]);
-
-  // Test Connection
-  useEffect(() => {
-    async function testConnection() {
-      try {
-        await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
-        if(error instanceof Error && error.message.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration.");
-        }
-      }
-    }
-    testConnection();
-  }, []);
 
   const handleLogin = async () => {
     setAuthError(null);
@@ -417,7 +484,6 @@ export default function App() {
     try {
       // Clear state immediately for UI responsiveness
       setUser(null);
-      setIsAuthReady(false);
       
       // Sign out from Firebase
       await signOut(auth);
@@ -425,13 +491,8 @@ export default function App() {
       // Clear any local storage that might interfere
       localStorage.clear();
       sessionStorage.clear();
-      
-      // Force a clean redirect to the origin
-      window.location.replace(window.location.origin);
     } catch (error) {
       console.error("Logout error:", error);
-      // Fallback in case of error
-      window.location.replace(window.location.origin);
     }
   };
 
@@ -464,19 +525,42 @@ export default function App() {
 
     const totalFixedCosts = activeFixedCosts.reduce((acc, curr) => acc + curr.valorMensal, 0);
     
-    // Identify which expenses are payments of fixed costs
+    // 1. Identify which expenses are payments of fixed costs referencing this month (COMPLIANCE)
+    const fixedCostPayments = state.entries.filter(e => {
+      if (e.tipo !== 'Despesa') return false;
+
+      let refMonth = e.referenciaMes;
+      if (!refMonth) {
+        const d = parseEntryDate(e.data);
+        refMonth = format(d, 'yyyy-MM');
+      }
+      
+      if (refMonth !== currentMonthStr) return false;
+
+      const cat = state.categories.find(c => c.id === e.categoriaId);
+      const categoryName = cat?.nome.toLowerCase().trim() || '';
+      const obs = e.obs?.toLowerCase().trim() || '';
+      
+      return activeFixedCosts.some(fc => {
+        const fcItem = fc.item.toLowerCase().trim();
+        return categoryName === fcItem || obs === fcItem;
+      });
+    });
+
+    const paidFixedCostsSum = fixedCostPayments.reduce((acc, curr) => acc + curr.valor, 0);
+
+    // 2. Identify which expenses were made THIS MONTH that are fixed cost payments (CASH FLOW)
+    // This is used to separate fixed from variable expenses in the current month view
     const fixedCostPaymentIds: string[] = [];
-    const fixedCostPayments = currentMonthEntries.filter(e => {
+    const paidThisMonthFixedCostPayments = currentMonthEntries.filter(e => {
       if (e.tipo !== 'Despesa') return false;
       const cat = state.categories.find(c => c.id === e.categoriaId);
       const categoryName = cat?.nome.toLowerCase().trim() || '';
       const obs = e.obs?.toLowerCase().trim() || '';
       
-      const isFixed = activeFixedCosts.some(fc => {
+      const isFixed = state.fixedCosts.some(fc => {
         const fcItem = fc.item.toLowerCase().trim();
-        // Match if category name is in fixed cost item name or vice versa
-        // Or if observation contains the fixed cost item name
-        return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
+        return categoryName === fcItem || obs === fcItem;
       });
 
       if (isFixed && e.id) {
@@ -485,10 +569,10 @@ export default function App() {
       return isFixed;
     });
 
-    const paidFixedCostsSum = fixedCostPayments.reduce((acc, curr) => acc + curr.valor, 0);
+    const paidThisMonthFixedCostSum = paidThisMonthFixedCostPayments.reduce((acc, curr) => acc + curr.valor, 0);
 
     // Expenses that are NOT fixed cost payments (daily expenses)
-    const dailyExpenses = expenses - paidFixedCostsSum;
+    const dailyExpenses = expenses - paidThisMonthFixedCostSum;
 
     // Saldo a Pagar = (Total Fixed Costs - Paid Fixed Costs) + Daily Expenses
     // We use Math.max(0, ...) to ensure we don't show negative balance if a payment was higher than expected
@@ -509,8 +593,12 @@ export default function App() {
         };
     });
 
-    const todayStr = format(now, 'yyyy/MM/dd');
-    const todayEntries = currentMonthEntries.filter(e => e.data === todayStr);
+    const startOfTodayDt = startOfDay(now);
+    const endOfTodayDt = endOfDay(now);
+    const todayEntries = currentMonthEntries.filter(e => {
+      const eDate = parseEntryDate(e.data);
+      return isWithinInterval(eDate, { start: startOfTodayDt, end: endOfTodayDt });
+    });
 
     const todayEarnings = todayEntries
       .filter(e => e.tipo === 'Ganhos')
@@ -527,7 +615,7 @@ export default function App() {
       const obs = e.obs?.toLowerCase().trim() || '';
       return activeFixedCosts.some(fc => {
         const fcItem = fc.item.toLowerCase().trim();
-        return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
+        return categoryName === fcItem || obs === fcItem;
       });
     }).reduce((acc, curr) => acc + curr.valor, 0);
 
@@ -546,12 +634,12 @@ export default function App() {
                 const categoryName = cat?.nome.toLowerCase().trim() || '';
                 const obs = e.obs?.toLowerCase().trim() || '';
                 const fcItem = fc.item.toLowerCase().trim();
-                return fcItem.includes(categoryName) || categoryName.includes(fcItem) || obs.includes(fcItem);
+                return categoryName === fcItem || obs === fcItem;
             })
             .reduce((acc, e) => acc + e.valor, 0);
         
-        // Define a tolerance of R$ 50,00 to treat as "Paid" even if values differ slightly
-        const TOLERANCE = 50.00;
+        // Define a tolerance of R$ 1000,00 to treat as "Paid" even if values differ slightly
+        const TOLERANCE = 1000.00;
         return (fc.valorMensal - paidAmount) > TOLERANCE;
     }).map(fc => fc.item);
     
@@ -589,22 +677,34 @@ export default function App() {
     return 0;
   }, [state.currentKm, state.entries]);
 
-  const handleAddEntry = async (entry: Omit<Entry, 'id'>) => {
+  const handleAddEntry = async (entryData: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => {
     if (!user) return;
     
-    const cleanedEntry = truncateLargeFields(cleanObject(entry));
+    const entriesToAdd = Array.isArray(entryData) ? entryData : [entryData];
     const batch = writeBatch(db);
     
     try {
-      if (editingEntry) {
-        const entryRef = doc(db, 'users', user.uid, 'entries', editingEntry.id);
-        batch.set(entryRef, cleanedEntry);
-      } else {
-        const entriesRef = collection(db, 'users', user.uid, 'entries');
-        const newEntryRef = doc(entriesRef);
-        batch.set(newEntryRef, cleanedEntry);
+      let latestKm = 0;
+      
+      for (const entry of entriesToAdd) {
+        const cleanedEntry = truncateLargeFields(cleanObject(entry));
         
-        // Track contribution for new entries
+        if (editingEntry && !Array.isArray(entryData)) {
+          const entryRef = doc(db, 'users', user.uid, 'entries', editingEntry.id);
+          batch.set(entryRef, cleanedEntry);
+        } else {
+          const entriesRef = collection(db, 'users', user.uid, 'entries');
+          const newEntryRef = doc(entriesRef);
+          batch.set(newEntryRef, cleanedEntry);
+        }
+        
+        if (entry.km && entry.km > latestKm) {
+          latestKm = entry.km;
+        }
+      }
+      
+      // Track contribution for new entries if not editing
+      if (!editingEntry || Array.isArray(entryData)) {
         const userDocRef = doc(db, 'users', user.uid);
         batch.set(userDocRef, { 
           hasContributed: true,
@@ -613,9 +713,9 @@ export default function App() {
       }
 
       // Update current KM in user config if provided
-      if (entry.km) {
+      if (latestKm > 0) {
         const userDocRef = doc(db, 'users', user.uid);
-        batch.set(userDocRef, { currentKm: entry.km }, { merge: true });
+        batch.set(userDocRef, { currentKm: latestKm }, { merge: true });
       }
       
       await batch.commit();
@@ -844,7 +944,12 @@ export default function App() {
   }
 
   if (isTrialExpired) {
-    return <TrialExpiredView onLogout={handleLogout} />;
+    return <TrialExpiredView 
+      onLogout={handleLogout} 
+      entries={state.entries} 
+      categories={state.categories} 
+      earningCategories={state.earningCategories} 
+    />;
   }
 
   if (state.appConfig?.maintenanceMode && !isAdmin) {
@@ -863,7 +968,6 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <PWAPrompt />
       <div className={cn(
         "min-h-screen bg-[#0047AB] text-white font-sans pb-20 selection:bg-blue-400 selection:text-white",
         isBeta && "beta-mode"
@@ -908,20 +1012,33 @@ export default function App() {
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-[10px] opacity-80 uppercase font-semibold">Saldo do Mês</p>
-              <p className={cn(
-                "font-bold text-sm",
-                totals.balance >= 0 ? "text-emerald-400" : "text-rose-400"
-              )}>
+              <p 
+                className={cn(
+                  "font-bold text-sm",
+                  totals.balance >= 0 ? "text-emerald-400" : "text-rose-400",
+                  isAdmin && "cursor-help"
+                )}
+                title={isAdmin ? `Cálculo do Saldo:\nGanhos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.earnings)}\n- Custos Fixos: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.totalFixedCosts)}\n- Despesas de Rua: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.dailyExpenses)}\n= Saldo: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.balance)}` : undefined}
+              >
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totals.balance)}
               </p>
             </div>
-            <button 
-              onClick={handleLogout}
-              className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
-              title="Sair"
-            >
-              <LogOut size={18} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setIsManualOpen(true)}
+                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                title="Guia de Uso"
+              >
+                <HelpCircle size={18} />
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="p-2 bg-white/10 rounded-xl hover:bg-white/20 transition-colors"
+                title="Sair"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -945,11 +1062,26 @@ export default function App() {
                 maintenanceIntervals={state.maintenanceIntervals}
                 entries={state.entries}
                 categories={state.categories}
+                earningCategories={state.earningCategories}
                 onViewMaintenance={() => setActiveTab('maintenance')}
                 onOpenAIStudio={() => setIsAIVideoStudioOpen(true)}
                 isAdmin={isAdmin}
                 uniqueVisitors={globalStats?.uniqueVisitors}
                 email={user?.email || undefined}
+              />
+            </motion.div>
+          )}
+          {activeTab === 'graphics' && (
+            <motion.div
+              key="graphics"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <DashboardGraphics 
+                totals={totals}
+                entries={state.entries}
+                categories={state.categories}
               />
             </motion.div>
           )}
@@ -977,7 +1109,8 @@ export default function App() {
             >
               <EntryList 
                 entries={state.entries} 
-                categories={state.categories} 
+                categories={state.categories}
+                earningCategories={state.earningCategories}
                 onDelete={handleDeleteEntry} 
                 onEdit={(entry) => {
                   setEditingEntry(entry);
@@ -1009,7 +1142,9 @@ export default function App() {
             >
               <ReportsView 
                 entries={state.entries} 
-                categories={state.categories} 
+                categories={state.categories}
+                earningCategories={state.earningCategories}
+                monthlyTotals={totals}
               />
             </motion.div>
           )}
@@ -1120,15 +1255,17 @@ export default function App() {
       <AnimatePresence>
         {!state.tutorialOptOut && !dismissedTutorialSession && user && (
           <TutorialModal 
+            key="tutorial-modal"
             onClose={(dontShowAgain) => handleCloseTutorial(dontShowAgain)} 
             onStartWithExamples={handleStartWithExamples}
           />
         )}
         {isAdmin && isAIVideoStudioOpen && (
-          <AIVideoStudio onClose={() => setIsAIVideoStudioOpen(false)} />
+          <AIVideoStudio key="ai-video-studio" onClose={() => setIsAIVideoStudioOpen(false)} />
         )}
+        <ManualModal key="manual-modal" isOpen={isManualOpen} onClose={() => setIsManualOpen(false)} />
         {isEntryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div key="entry-modal-container" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1163,6 +1300,7 @@ export default function App() {
                   lastKm={lastRecordedKm}
                   entries={state.entries}
                   initialData={editingEntry || undefined}
+                  fixedCosts={state.fixedCosts}
                 />
               </div>
             </motion.div>

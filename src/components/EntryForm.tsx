@@ -20,26 +20,28 @@ import {
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { cn, compressImage } from '../lib/utils';
-import { Entry, EntryType, Category } from '../types';
+import { cn, compressImage, parseEntryDate } from '../lib/utils';
+import { Entry, EntryType, Category, FixedCost } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
 import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../services/geminiService';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 
 interface EntryFormProps {
-  onSubmit: (entry: Omit<Entry, 'id'>) => void;
+  onSubmit: (entry: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => void;
   categories: Category[];
   earningCategories: Category[];
   lastKm: number;
   entries: Entry[];
   initialData?: Entry;
+  fixedCosts: FixedCost[];
 }
 
-export default function EntryForm({ onSubmit, categories, earningCategories, lastKm, entries, initialData }: EntryFormProps) {
+export default function EntryForm({ onSubmit, categories, earningCategories, lastKm, entries, initialData, fixedCosts }: EntryFormProps) {
   const [tipo, setTipo] = useState<EntryType>(initialData?.tipo || 'Ganhos');
   const [data, setData] = useState(() => {
     if (initialData?.data) {
@@ -86,14 +88,72 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(initialData?.photoUrl || null);
   const [qrCodeData, setQrCodeData] = useState<string | null>(initialData?.qrCodeData || null);
+  const [referenciaMes, setReferenciaMes] = useState(initialData?.referenciaMes || format(new Date(), 'yyyy-MM'));
   const [isScanning, setIsScanning] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const months = useMemo(() => {
+    const list = [];
+    const base = new Date();
+    // Show 3 months before and 3 months after
+    for (let i = -3; i <= 3; i++) {
+      list.push(format(addMonths(base, i), 'yyyy-MM'));
+    }
+    return list;
+  }, []);
+
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentsCount, setInstallmentsCount] = useState('2');
+  const [installmentDueDate, setInstallmentDueDate] = useState('10');
+  const [startNextMonth, setStartNextMonth] = useState(false);
+  
+  const [isMaintenanceItem, setIsMaintenanceItem] = useState(false);
+  const [maintenanceItemName, setMaintenanceItemName] = useState('');
+  const [garantiaKm, setGarantiaKm] = useState('');
+  const [garantiaMeses, setGarantiaMeses] = useState('');
+
   const selectedCategory = categories.find(c => c.id === categoriaId);
   const isAbastecimento = selectedCategory?.nome.toLowerCase() === 'abastecimento';
   const isAlimentacao = selectedCategory?.nome.toLowerCase() === 'alimentação' || selectedCategory?.nome.toLowerCase() === 'alimentacao';
+  
+  const isFixedCost = useMemo(() => {
+    if (tipo !== 'Despesa') return false;
+    const catName = selectedCategory?.nome.toLowerCase().trim() || '';
+    const observation = obs.toLowerCase().trim();
+    return fixedCosts.some(fc => {
+        const fcItem = fc.item.toLowerCase().trim();
+        return catName === fcItem || observation === fcItem;
+    });
+  }, [tipo, selectedCategory, obs, fixedCosts]);
+
+  const lastRefuelingKm = useMemo(() => {
+    const fuelEntries = entries
+      .filter(e => {
+        const cat = categories.find(c => c.id === e.categoriaId);
+        return cat?.nome.toLowerCase() === 'abastecimento' && e.km && e.km > 0;
+      })
+      .sort((a, b) => {
+        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
+        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
+        return dateB.localeCompare(dateA);
+      });
+
+    if (initialData) {
+      const idx = fuelEntries.findIndex(e => e.id === initialData.id);
+      if (idx !== -1 && fuelEntries[idx + 1]) return fuelEntries[idx + 1].km as number;
+      if (idx === -1 && fuelEntries.length > 0) return fuelEntries[0].km as number;
+      return null;
+    }
+    
+    return fuelEntries.length > 0 ? fuelEntries[0].km as number : null;
+  }, [entries, categories, initialData]);
+  
+  const kmPlaceholder = tipo === 'Despesa' && lastRefuelingKm && lastRefuelingKm > 0 
+    ? lastRefuelingKm.toString() 
+    : (lastKm > 0 ? lastKm.toString() : "Digite o KM atual");
+
   const isTrocaOleo = selectedCategory?.nome.toLowerCase() === 'troca de oleo' || selectedCategory?.nome.toLowerCase() === 'troca de óleo';
   const isMaintenance = selectedCategory?.nome.toLowerCase() === 'manutenção' || selectedCategory?.parentId === '3';
   const hasLocation = ['abastecimento', 'lavagem', 'manutenção', 'alimentação', 'alimentacao'].includes(selectedCategory?.nome.toLowerCase() || '') || selectedCategory?.parentId === '3';
@@ -103,7 +163,13 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
     if (hasLocation && !location && !isGettingLocation) {
       handleGetLocation();
     }
-  }, [categoriaId, hasLocation]);
+    
+    if (tipo === 'Despesa') {
+      setIsMaintenanceItem(isMaintenance || isTrocaOleo);
+    } else {
+      setIsMaintenanceItem(false);
+    }
+  }, [categoriaId, hasLocation, tipo, isMaintenance, isTrocaOleo]);
 
   const handleGetLocation = () => {
     if (!navigator.geolocation) return;
@@ -407,9 +473,16 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
   }, [tipo, ganhos, valor]);
 
   const todayEarnings = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const startOfTodayDt = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return entries
-      .filter(e => e.tipo === 'Ganhos' && typeof e.data === 'string' && e.data.startsWith(today))
+      .filter(e => {
+        if (e.tipo !== 'Ganhos' || !e.data) return false;
+        const eDate = parseEntryDate(e.data);
+        return eDate.getFullYear() === startOfTodayDt.getFullYear() && 
+               eDate.getMonth() === startOfTodayDt.getMonth() && 
+               eDate.getDate() === startOfTodayDt.getDate();
+      })
       .reduce((acc, curr) => acc + (curr.valor || 0), 0);
   }, [entries]);
 
@@ -425,31 +498,11 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
     }
   }, [isAbastecimento, quantidade, valorUnitario]);
 
-  const lastEntryKm = useMemo(() => {
-    const kmEntries = entries
-      .filter(e => e.km)
-      .sort((a, b) => {
-        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
-        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
-        return dateB.localeCompare(dateA);
-      });
-    return kmEntries.length > 0 ? kmEntries[0].km : null;
-  }, [entries]);
-
-  const lastTrocaOleoKm = useMemo(() => {
-    const oilEntries = entries.filter(e => {
-      const cat = categories.find(c => c.id === e.categoriaId);
-      const name = cat?.nome.toLowerCase();
-      return (name === 'troca de oleo' || name === 'troca de óleo') && e.km;
-    });
-    return oilEntries.length > 0 ? oilEntries[0].km : null;
-  }, [entries, categories]);
-
   const kmRodadoPreview = useMemo(() => {
-    if (!km || !lastEntryKm) return null;
-    const diff = Number(km) - lastEntryKm;
+    if (!km || !lastRefuelingKm) return null;
+    const diff = Number(km) - lastRefuelingKm;
     return diff > 0 ? diff : null;
-  }, [km, lastEntryKm]);
+  }, [km, lastRefuelingKm]);
 
   const oilLifePreview = useMemo(() => {
     if (!isTrocaOleo || !km) return null;
@@ -500,7 +553,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
     const currentKmNum = Number(km.toString().replace(',', '.'));
     const validKm = isNaN(currentKmNum) ? undefined : (currentKmNum || undefined);
-    const kmRodado = (lastEntryKm && validKm) ? (validKm - lastEntryKm) : undefined;
+    const kmRodado = (lastRefuelingKm && validKm) ? (validKm - lastRefuelingKm) : undefined;
 
     const now = new Date();
     const formattedDate = data.replace(/-/g, '/'); // Convert yyyy-MM-dd back to yyyy/MM/dd
@@ -511,6 +564,71 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
     const currentQty = isAbastecimento ? Number(quantidade.toString().replace(',', '.')) : undefined;
     const currentPrice = isAbastecimento ? Number(valorUnitario.toString().replace(',', '.')) : undefined;
+
+    const numGarantiaKm = Number(garantiaKm.replace(/\D/g, ''));
+    const numGarantiaMeses = Number(garantiaMeses);
+
+    if (tipo === 'Despesa' && isInstallment) {
+      const count = Number(installmentsCount);
+      if (count > 0 && entryValor > 0) {
+        const entriesToSubmit = [];
+        let baseDate = new Date(data.replace(/-/g, '/'));
+        if (startNextMonth) {
+          baseDate = addMonths(baseDate, 1);
+        }
+        
+        const dueDay = parseInt(installmentDueDate, 10);
+        if (!isNaN(dueDay)) {
+          // Set to the target day, clamping to end of month if necessary
+          const endOfMonth = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 0).getDate();
+          baseDate.setDate(Math.min(dueDay, endOfMonth));
+        }
+
+        const installmentValue = entryValor / count;
+        
+        for (let i = 0; i < count; i++) {
+          const installmentDate = addMonths(baseDate, i);
+          if (!isNaN(dueDay)) {
+            const endOfMonth = new Date(installmentDate.getFullYear(), installmentDate.getMonth() + 1, 0).getDate();
+            installmentDate.setDate(Math.min(dueDay, endOfMonth));
+          }
+          const formattedInstDate = format(installmentDate, 'yyyy/MM/dd');
+          
+          entriesToSubmit.push({
+            data: formattedInstDate,
+            createdAt: initialData?.createdAt || formattedCreatedAt,
+            tipo,
+            categoriaId,
+            valor: Number(installmentValue.toFixed(2)),
+            km: i === 0 ? validKm : undefined,
+            kmRodado: i === 0 ? (initialData?.kmRodado || kmRodado) : undefined,
+            combustivel: isAbastecimento ? combustivel : undefined,
+            quantidade: i === 0 ? (isNaN(currentQty as number) ? undefined : currentQty) : undefined,
+            valorUnitario: i === 0 ? (isNaN(currentPrice as number) ? undefined : currentPrice) : undefined,
+            bandeiraPosto: i === 0 ? (isAbastecimento ? bandeiraPosto : undefined) : undefined,
+            gps: i === 0 ? gps : undefined,
+            endereco: i === 0 ? endereco : undefined,
+            photoUrl: i === 0 ? (photoUrl || undefined) : undefined,
+            qrCodeData: i === 0 ? (qrCodeData || undefined) : undefined,
+            linkNota: i === 0 ? (linkNota || undefined) : undefined,
+            ganhos: undefined,
+            obs: `${obs ? obs + ' - ' : ''}Parcela ${i + 1}/${count}`,
+            referenciaMes: i === 0 ? referenciaMes : format(installmentDate, 'yyyy-MM'),
+            garantiaKm: i === 0 && numGarantiaKm > 0 ? numGarantiaKm : undefined,
+            garantiaMeses: i === 0 && numGarantiaMeses > 0 ? numGarantiaMeses : undefined,
+            manutencaoItem: i === 0 && isMaintenanceItem ? (maintenanceItemName || 'Sim') : undefined,
+            ratings: i === 0 ? ((isAbastecimento || isAlimentacao) ? {
+              servico: ratingServico,
+              higiene: ratingHigiene,
+              atendimento: ratingAtendimento
+            } : undefined) : undefined
+          });
+        }
+        
+        onSubmit(entriesToSubmit);
+        return;
+      }
+    }
 
     onSubmit({
       data: formattedDate,
@@ -531,6 +649,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       linkNota: linkNota || undefined,
       ganhos: numericGanhos,
       obs,
+      referenciaMes: isFixedCost ? referenciaMes : undefined,
+      garantiaKm: numGarantiaKm > 0 ? numGarantiaKm : undefined,
+      garantiaMeses: numGarantiaMeses > 0 ? numGarantiaMeses : undefined,
+      manutencaoItem: isMaintenanceItem ? (maintenanceItemName || 'Sim') : undefined,
       ratings: (isAbastecimento || isAlimentacao) ? {
         servico: ratingServico,
         higiene: ratingHigiene,
@@ -578,19 +700,46 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       </div>
 
       {/* Date Selector */}
-      <div className="space-y-2">
-        <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Data do Lançamento</label>
-        <div className="relative">
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-            <Calendar className="text-blue-500" size={18} />
+      <div className={cn("grid gap-4", isFixedCost ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1")}>
+        <div className="space-y-2">
+          <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Data do Lançamento</label>
+          <div className="relative">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+              <Calendar className="text-blue-500" size={18} />
+            </div>
+            <input
+              type="date"
+              value={data}
+              onChange={(e) => setData(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-11 pr-4 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+            />
           </div>
-          <input
-            type="date"
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-            className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-11 pr-4 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
-          />
         </div>
+
+        {isFixedCost && (
+          <div className="space-y-2 animate-in fade-in slide-in-from-left-2">
+            <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Mês de Referência</label>
+            <div className="relative">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
+                <Calendar className="text-emerald-500" size={18} />
+              </div>
+              <select
+                value={referenciaMes}
+                onChange={(e) => setReferenciaMes(e.target.value)}
+                className="w-full bg-emerald-50 border border-emerald-100 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-emerald-900 focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all appearance-none cursor-pointer"
+              >
+                {months.map(m => (
+                  <option key={m} value={m}>
+                    {format(new Date(m + '-02'), 'MMMM yyyy', { locale: ptBR })}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-emerald-400">
+                <ChevronDown size={18} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {formError && (
@@ -602,9 +751,9 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
       {tipo === 'Ganhos' ? (
         <div className="space-y-4">
-          {earningCategories.map(cat => (
+          {earningCategories.map((cat, idx) => (
             <InputGroup 
-              key={cat.id}
+              key={`${cat.id}-${idx}`}
               label={`Ganhos ${cat.nome}`} 
               value={ganhos[cat.id] || ''} 
               onChange={(v) => handleGanhosChange(cat.id, v)} 
@@ -646,20 +795,20 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
                 onChange={(e) => setCategoriaId(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
               >
-                {categories.filter(c => !c.parentId && c.nome !== 'Fechamento do Dia').map(parent => {
+                {categories.filter(c => !c.parentId && c.nome !== 'Fechamento do Dia').map((parent, idx) => {
                   const children = categories.filter(c => c.parentId === parent.id);
                   if (children.length > 0) {
                     return (
-                      <optgroup key={parent.id} label={parent.nome}>
-                        <option value={parent.id}>{parent.nome} (Geral)</option>
-                        {children.map(child => (
-                          <option key={child.id} value={child.id}>{child.nome}</option>
+                      <optgroup key={`${parent.id}-${idx}`} label={parent.nome}>
+                        <option key={`parent-geral-${parent.id}-${idx}`} value={parent.id}>{parent.nome} (Geral)</option>
+                        {children.map((child, cIdx) => (
+                          <option key={`${child.id}-${cIdx}`} value={child.id}>{child.nome}</option>
                         ))}
                       </optgroup>
                     );
                   }
                   return (
-                    <option key={parent.id} value={parent.id}>
+                    <option key={`${parent.id}-${idx}`} value={parent.id}>
                       {parent.nome}
                     </option>
                   );
@@ -671,7 +820,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
             </div>
           </div>
           <InputGroup 
-            label="Valor da Despesa" 
+            label="Valor Total da Despesa" 
             value={valor} 
             onChange={setValor} 
             placeholder="R$ 0,00" 
@@ -679,6 +828,64 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
             icon={<TrendingDown className="text-slate-400" size={18} />}
             disabled={isAbastecimento}
           />
+          
+          {tipo === 'Despesa' && (
+            <div className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200/50 -mt-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={isInstallment}
+                  onChange={(e) => setIsInstallment(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
+                />
+                <span className="text-sm font-bold text-slate-600">Dividir valor em parcelas mensais?</span>
+              </label>
+              
+              {isInstallment && (
+                <div className="flex flex-col gap-3 mt-2 animate-in fade-in zoom-in-95 pl-6">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500">Em quantas vezes?</span>
+                    <input
+                      type="number"
+                      min="2"
+                      max="48"
+                      value={installmentsCount}
+                      onChange={(e) => setInstallmentsCount(e.target.value)}
+                      className="w-16 bg-white border border-slate-200 rounded-lg p-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                    <span className="text-xs text-slate-400">vezes</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500">Dia do vencimento:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={installmentDueDate}
+                      onChange={(e) => setInstallmentDueDate(e.target.value)}
+                      className="w-16 bg-white border border-slate-200 rounded-lg p-1.5 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    />
+                  </div>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input 
+                      type="checkbox" 
+                      checked={startNextMonth}
+                      onChange={(e) => setStartNextMonth(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
+                    />
+                    <span className="text-xs font-semibold text-slate-600">A primeira parcela será descontada no próximo mês?</span>
+                  </label>
+                  
+                  <div className="text-xs text-slate-500 italic mt-1 bg-blue-50 p-2 rounded-lg border border-blue-100">
+                    O app irá calcular automaticamente o valor de cada parcela: <br/>
+                    <span className="font-bold text-blue-700">{installmentsCount}x de {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(valor) || 0) / (Number(installmentsCount) || 1))}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {isAbastecimento && (
             <div className="space-y-6 pt-6 border-t border-slate-100">
@@ -693,9 +900,9 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
                     onChange={(e) => setBandeiraPosto(e.target.value)}
                     className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-11 pr-10 text-base font-bold text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none cursor-pointer"
                   >
-                    <option value="">Selecione o Posto</option>
-                    {GAS_STATIONS.map(posto => (
-                      <option key={posto} value={posto}>
+                    <option key="empty-station" value="">Selecione o Posto</option>
+                    {GAS_STATIONS.map((posto, idx) => (
+                      <option key={`${posto}-${idx}`} value={posto}>
                         {posto}
                       </option>
                     ))}
@@ -709,9 +916,9 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Tipo de Combustível</label>
                 <div className="grid grid-cols-3 gap-3">
-                  {['Gasolina', 'Etanol', 'GNV'].map(type => (
+                  {['Gasolina', 'Etanol', 'GNV'].map((type, idx) => (
                     <button
-                      key={type}
+                      key={`${type}-${idx}`}
                       type="button"
                       onClick={() => setCombustivel(type)}
                       className={cn(
@@ -775,7 +982,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
                   <button
                     type="button"
                     onClick={handleExtractFromImage}
-                    disabled={isExtracting}
+                    disabled={isExtracting || !!qrCodeData}
                     className="col-span-2 flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-emerald-100 hover:scale-[1.02] transition-all active:scale-95 disabled:opacity-50"
                   >
                     {isExtracting ? (
@@ -794,11 +1001,11 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isExtracting}
-                    className="col-span-2 flex items-center justify-center gap-2 py-3 px-4 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-200 transition-all disabled:opacity-50"
+                    disabled={isExtracting || !!qrCodeData}
+                    className={`col-span-2 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold transition-all ${qrCodeData ? 'bg-slate-100/50 text-slate-400 cursor-not-allowed' : 'bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50'}`}
                   >
                     <Camera size={16} />
-                    Anexar Foto da Nota
+                    {qrCodeData ? 'Foto Desabilitada (QR Code Lido)' : 'Anexar Foto da Nota'}
                   </button>
                 )}
 
@@ -968,7 +1175,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
           label="Km Atual" 
           value={km} 
           onChange={setKm} 
-          placeholder={lastKm > 0 ? `Ex: ${lastKm}` : "Digite o KM atual"} 
+          placeholder={kmPlaceholder} 
           type="number"
           icon={<Car className="text-slate-400" size={18} />}
         />
@@ -1001,8 +1208,56 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
             onChange={(e) => setObs(e.target.value)}
             placeholder={isAbastecimento ? "Ex: Abasteci no Posto Shell, combustível de boa qualidade..." : "Ex: Detalhes sobre este lançamento..."}
             className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all min-h-[80px]"
+            rows={2}
           />
         </div>
+
+        {tipo === 'Despesa' && (
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 mt-4 space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isMaintenanceItem}
+                onChange={(e) => setIsMaintenanceItem(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
+              />
+              <span className="text-sm font-bold text-slate-700">Este é um item de manutenção ou possui garantia?</span>
+            </label>
+            
+            {isMaintenanceItem && (
+              <div className="flex flex-col gap-3 animate-in fade-in zoom-in-95 pl-6 pt-2 border-l-2 border-blue-100 ml-2">
+                <span className="text-xs text-slate-500 italic pb-1">
+                  Preencha os campos abaixo para acompanhar o tempo de uso ou a validade da garantia. O "Km Atual" precisa estar preenchido logo acima.
+                </span>
+                <div className="grid grid-cols-1 gap-3 mb-1">
+                  <InputGroup 
+                    label="Nome da Peça / Qual pneu (Opcional)" 
+                    value={maintenanceItemName} 
+                    onChange={setMaintenanceItemName} 
+                    placeholder="Ex: Pneu Dianteiro Direito, Correia Dentada..." 
+                    type="text"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <InputGroup 
+                    label="Garantia/Troca em KM" 
+                    value={garantiaKm} 
+                    onChange={setGarantiaKm} 
+                    placeholder="Ex: 10000" 
+                    type="number"
+                  />
+                  <InputGroup 
+                    label="Garantia/Troca (Meses)" 
+                    value={garantiaMeses} 
+                    onChange={setGarantiaMeses} 
+                    placeholder="Ex: 12" 
+                    type="number"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {(isAbastecimento || isAlimentacao) && (
           <div className="space-y-3 bg-yellow-50 border border-yellow-100 p-4 rounded-2xl mt-4">

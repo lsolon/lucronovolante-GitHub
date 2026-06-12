@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import DashboardGraphics from './DashboardGraphics';
 import { 
   format, 
   startOfDay, 
@@ -68,12 +69,16 @@ import { getCategoryStyle } from '../lib/category-styles';
 interface ReportsViewProps {
   entries: Entry[];
   categories: Category[];
+  earningCategories: Category[];
+  monthlyTotals: any;
 }
 
 type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
+type ViewMode = 'reports' | 'graphics';
 
-export default function ReportsView({ entries, categories }: ReportsViewProps) {
+export default function ReportsView({ entries, categories, earningCategories, monthlyTotals }: ReportsViewProps) {
   const [period, setPeriod] = useState<ReportPeriod>('monthly');
+  const [viewMode, setViewMode] = useState<ViewMode>('reports');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [weeklyRange, setWeeklyRange] = useState<4 | 8 | 12 | 'month'>(4);
   const [weeklyGroupMode, setWeeklyGroupMode] = useState<'byWeek' | 'byDayOfWeek'>('byWeek');
@@ -420,6 +425,26 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
             >
               <Share2 size={20} />
             </button>
+            <div className="flex p-1 bg-white/10 rounded-2xl mt-4 w-fit">
+                <button
+                    onClick={() => setViewMode('reports')}
+                    className={cn(
+                        "px-4 py-2 rounded-xl font-bold transition-all text-xs",
+                        viewMode === 'reports' ? "bg-white text-blue-600 shadow-sm" : "text-white"
+                    )}
+                >
+                    Relatórios
+                </button>
+                <button
+                    onClick={() => setViewMode('graphics')}
+                    className={cn(
+                        "px-4 py-2 rounded-xl font-bold transition-all text-xs",
+                        viewMode === 'graphics' ? "bg-white text-blue-600 shadow-sm" : "text-white"
+                    )}
+                >
+                    Gráficos
+                </button>
+            </div>
           </div>
         </div>
         <div className="absolute -right-4 -bottom-4 opacity-10 rotate-12">
@@ -427,12 +452,15 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
         </div>
       </div>
 
-      {/* Period Selector */}
+      {viewMode === 'graphics' ? (
+        <DashboardGraphics totals={monthlyTotals} entries={entries} categories={categories} />
+      ) : (
+        <>
       <div className="space-y-3">
         <div className="flex p-1 bg-slate-100 rounded-2xl">
-          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((p) => (
+          {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((p, idx) => (
             <button
-              key={p}
+              key={`${p}-${idx}`}
               onClick={() => {
                 setPeriod(p);
                 setSelectedDate(new Date());
@@ -450,9 +478,9 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
         {period === 'weekly' && (
           <div className="space-y-2">
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-              {[4, 8, 12, 'month'].map((r) => (
+              {[4, 8, 12, 'month'].map((r, idx) => (
                 <button
-                  key={r}
+                  key={`${r}-${idx}`}
                   onClick={() => setWeeklyRange(r as any)}
                   className={cn(
                     "whitespace-nowrap px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all border",
@@ -721,8 +749,8 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
                     paddingAngle={5}
                     dataKey="amount"
                   >
-                    {categoryBreakdown.breakdown.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {categoryBreakdown.breakdown.map((entry, idx) => (
+                      <Cell key={`cell-${entry.id}-${idx}`} fill={COLORS[idx % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip 
@@ -740,7 +768,7 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
 
             <div className="space-y-4">
               {categoryBreakdown.breakdown.map((item, index) => (
-                <div key={item.id} className="space-y-1.5">
+                <div key={`breakdown-${item.id}-${index}`} className="space-y-1.5">
                   <div className="flex justify-between text-xs font-bold">
                     <div className="flex items-center gap-2">
                       <div 
@@ -779,7 +807,7 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
       <div className="space-y-3">
         <h3 className="font-bold text-white ml-1">Detalhamento</h3>
         {reportData.slice().reverse().map((item, idx) => (
-          <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+          <div key={`report-${item.name}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
             <div>
               <p className="text-sm font-bold text-slate-800">{item.fullDate}</p>
               <div className="flex gap-3 mt-1">
@@ -877,18 +905,30 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
                   // Grouped View
                   Object.entries(
                     drillDown.entries.reduce((acc: Record<string, Entry[]>, entry) => {
-                      const category = categories.find(c => c.id === entry.categoriaId);
-                      const name = entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || 'Outros');
-                      if (!acc[name]) acc[name] = [];
-                      acc[name].push(entry);
+                      if (entry.tipo === 'Ganhos' && entry.ganhos) {
+                        // Expand earnings by platform
+                        Object.entries(entry.ganhos).forEach(([platformId, valor]) => {
+                           const platformCat = earningCategories.find(c => c.id === platformId);
+                           const platformName = platformCat?.nome || 'Outros Ganhos';
+                           if (!acc[platformName]) acc[platformName] = [];
+                           // Just clone the entry and set the valor for this platform slice
+                           acc[platformName].push({ ...entry, valor });
+                        });
+                      } else {
+                        const category = categories.find(c => c.id === entry.categoriaId);
+                        const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
+                        const name = entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa'));
+                        if (!acc[name]) acc[name] = [];
+                        acc[name].push(entry);
+                      }
                       return acc;
                     }, {})
-                  ).map(([groupName, groupEntries]) => {
+                  ).map(([groupName, groupEntries], idx) => {
                     const style = getCategoryStyle(groupName);
                     const groupTotal = groupEntries.reduce((acc, e) => acc + (e.valor || 0), 0);
                     
                     return (
-                      <div key={groupName} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                      <div key={`${groupName}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                         <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                           <div className="flex items-center gap-2">
                             <div className={cn("p-1.5 rounded-lg", style.bgColor, style.color)}>
@@ -901,8 +941,8 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
                           </span>
                         </div>
                         <div className="space-y-2">
-                          {groupEntries.map(entry => (
-                            <div key={entry.id} className="flex justify-between items-center text-[10px]">
+                          {groupEntries.map((entry, idx) => (
+                            <div key={`${entry.id}-${idx}`} className="flex justify-between items-center text-[10px]">
                               <span className="text-slate-500 font-medium">{format(parseEntryDate(entry.data), 'dd/MM/yyyy')}</span>
                               <div className="flex items-center gap-2">
                                 {entry.obs && <span className="text-slate-400 italic truncate max-w-[100px]">"{entry.obs}"</span>}
@@ -916,12 +956,24 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
                   })
                 ) : (
                   // Simple List View
-                  drillDown.entries.map((entry) => {
-                    const category = categories.find(c => c.id === entry.categoriaId);
-                    const style = getCategoryStyle(entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || 'Outros'));
+                  drillDown.entries.flatMap(entry => {
+                    if (entry.tipo === 'Ganhos' && entry.ganhos) {
+                      return Object.entries(entry.ganhos).map(([platformId, valor]) => {
+                         const platformCat = earningCategories.find(c => c.id === platformId);
+                         return { ...entry, valor, fallbackName: platformCat?.nome || 'Outros Ganhos' };
+                      });
+                    } else {
+                      const category = categories.find(c => c.id === entry.categoriaId);
+                      const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
+                      return [{ ...entry, fallbackName: entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa')) }];
+                    }
+                  }).map((item, idx) => {
+                    const entry = item;
+                    const fallbackName = item.fallbackName;
+                    const style = getCategoryStyle(fallbackName);
                     
                     return (
-                      <div key={entry.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
+                      <div key={`${entry.id}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
                         <div className={cn("p-2 rounded-xl shrink-0", style.bgColor, style.color)}>
                           {style.icon}
                         </div>
@@ -929,7 +981,7 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
                           <div className="flex justify-between items-start">
                             <div>
                               <h4 className="font-bold text-slate-800 text-sm truncate">
-                                {entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : category?.nome}
+                                {fallbackName}
                               </h4>
                               <p className="text-[10px] text-slate-400 font-bold">{format(parseEntryDate(entry.data), 'dd/MM/yyyy')}</p>
                             </div>
@@ -976,6 +1028,8 @@ export default function ReportsView({ entries, categories }: ReportsViewProps) {
           </div>
         )}
       </AnimatePresence>
+        </>
+      )}
     </div>
   );
 }

@@ -44,10 +44,16 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && 
-        (request.auth.token.email == "leandrosolon@gmail.com" ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin'));
+      return isAuthenticated() && (
+        ("email" in request.auth.token && (
+          request.auth.token.email == "leandrosolon@gmail.com" ||
+          request.auth.token.email == "Leandrosolon@gmail.com" ||
+          request.auth.token.email == "LEANDROSOLON@GMAIL.COM" ||
+          request.auth.token.email.lower() == "leandrosolon@gmail.com"
+        )) ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '') == 'admin')
+      );
     }
     
     function hasOnlyAllowedFields(fields) {
@@ -83,14 +89,39 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
+    match /trials/{email} {
+      allow read, create: if isAuthenticated() && 
+        ("email" in request.auth.token) && 
+        request.auth.token.email.lower() == email.lower();
+
+      allow update: if isAuthenticated() && 
+        ("email" in request.auth.token) && 
+        request.auth.token.email.lower() == email.lower() && 
+        request.resource.data.trialStartDate <= resource.data.trialStartDate;
+        
+      allow update, delete: if isAdmin();
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
       allow create, update: if isOwner(userId) && isValidUserConfig(request.resource.data);
+      allow delete: if isOwner(userId);
       
-      match /entries/{entryId} {
+      match /entries {
         allow read: if isOwner(userId) || isAdmin();
-        allow create, update: if isOwner(userId) && isValidEntry(request.resource.data);
-        allow delete: if isOwner(userId);
+        match /{entryId} {
+          allow read: if isOwner(userId) || isAdmin();
+          allow create, update: if isOwner(userId) && isValidEntry(request.resource.data);
+          allow delete: if isOwner(userId);
+        }
+      }
+
+      match /campaigns {
+        allow read: if isOwner(userId);
+        match /{campaignId} {
+          allow read, write: if isOwner(userId);
+        }
       }
     }
 
@@ -116,11 +147,6 @@ service cloud.firestore {
 
     match /test/connection {
       allow read: if true;
-    }
-
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

@@ -30,13 +30,13 @@ import {
   ChevronRight
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { format } from 'date-fns';
+import { format, addMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, truncateLargeFields } from '../lib/utils';
 import { FixedCost, Category, Entry, AppSheetMapping, MaintenanceInterval, AppConfig, GlobalStats } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { fetchAppSheetData, mapAppSheetToEntry, addRowsToAppSheet, mapEntryToAppSheet } from '../services/appsheetService';
-import { getGlobalStats, getAllUsers } from '../services/statsService';
+import { getGlobalStats, getAllUsers, updateUserTrial } from '../services/statsService';
 import AIVideoStudio from './AIVideoStudio';
 import MarketingFlyer from './MarketingFlyer';
 import { addBacklogItem, getBacklogItems, deleteBacklogItem, toggleBacklogItemStatus } from '../services/backlogService';
@@ -44,6 +44,7 @@ import { BacklogItem } from '../types';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 import PWAInstallButton from './PWAInstallButton';
+import { PolicyModal } from './PolicyModal';
 
 interface SettingsViewProps {
   fixedCosts: FixedCost[];
@@ -98,6 +99,7 @@ export default function SettingsView({
   const [importStatus, setImportStatus] = useState<{ success?: boolean; message?: string } | null>(null);
   const [pendingImport, setPendingImport] = useState<Entry[] | null>(null);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
+  const [modalType, setModalType] = useState<'terms' | 'privacy' | null>(null);
   const [isSyncingAppSheet, setIsSyncingAppSheet] = useState(false);
   const [isPushingToAppSheet, setIsPushingToAppSheet] = useState(false);
   const [isTestingConnection, setIsTestingConnection] = useState(false);
@@ -628,8 +630,8 @@ export default function SettingsView({
               </div>
               
               <div className="space-y-3">
-                {maintenanceIntervals.map((interval) => (
-                  <div key={interval.id} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+                {maintenanceIntervals.map((interval, idx) => (
+                  <div key={`${interval.id}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className={cn("p-1.5 rounded-lg", getCategoryStyle(interval.item).bgColor, getCategoryStyle(interval.item).color)}>
@@ -710,6 +712,28 @@ export default function SettingsView({
                 )}
               </div>
             </div>
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-slate-50 rounded-xl">
+                  <Mail className="text-slate-600 size-5" />
+                </div>
+                <h3 className="font-bold text-slate-800">Contato / Suporte</h3>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Dúvidas, sugestões ou encontrou algum problema no aplicativo? Entre em contato conosco via e-mail.
+              </p>
+              <div className="flex p-4 bg-slate-50 border border-slate-100 rounded-2xl items-center justify-between">
+                <span className="font-bold text-slate-700 text-sm">lucronovolanteapp@gmail.com</span>
+                <a href="mailto:lucronovolanteapp@gmail.com" className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100 hover:bg-blue-100 transition-all">
+                  Enviar E-mail
+                </a>
+              </div>
+              <div className="flex gap-4 pt-2">
+                <button onClick={() => setModalType('terms')} className="flex-1 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">Termos de Uso</button>
+                <button onClick={() => setModalType('privacy')} className="flex-1 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">Privacidade</button>
+              </div>
+            </div>
+
             <div className="pt-6 border-t border-slate-100 space-y-4">
               <div className="flex items-center gap-3 mb-2">
                 <div className="p-2 bg-blue-50 rounded-xl">
@@ -1242,6 +1266,9 @@ function FixedCostsManager({ costs, onUpdate }: { costs: FixedCost[], onUpdate: 
   const [newItem, setNewItem] = useState('');
   const [newValue, setNewValue] = useState('');
   const [newDay, setNewDay] = useState('10');
+  const [isInstallment, setIsInstallment] = useState(false);
+  const [installmentsCount, setInstallmentsCount] = useState('2');
+  const [startNextMonth, setStartNextMonth] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const [editDay, setEditDay] = useState('');
@@ -1252,16 +1279,35 @@ function FixedCostsManager({ costs, onUpdate }: { costs: FixedCost[], onUpdate: 
   const handleAdd = () => {
     const trimmed = newItem.trim();
     if (!trimmed || !newValue) return;
+    
+    let baseDate = new Date();
+    if (startNextMonth) {
+      baseDate = addMonths(baseDate, 1);
+    }
+    const startMonthStr = format(baseDate, 'yyyy-MM');
+    
+    let endMonthStr: string | undefined = undefined;
+    if (isInstallment) {
+      const count = Number(installmentsCount);
+      if (count > 0) {
+        endMonthStr = format(addMonths(baseDate, count - 1), 'yyyy-MM');
+      }
+    }
+
     const newCost: FixedCost = {
       id: crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15),
       item: trimmed,
       valorMensal: Number(newValue),
       diaVencimento: Number(newDay),
-      dataInicio: currentMonthStr
+      dataInicio: startMonthStr,
+      dataFim: endMonthStr
     };
     onUpdate([...costs, newCost]);
     setNewItem('');
     setNewValue('');
+    setIsInstallment(false);
+    setInstallmentsCount('2');
+    setStartNextMonth(false);
   };
 
   const handleDelete = (id: string) => {
@@ -1325,13 +1371,13 @@ function FixedCostsManager({ costs, onUpdate }: { costs: FixedCost[], onUpdate: 
       </div>
 
       <div className="space-y-3">
-        {displayCosts.map((cost) => {
+        {displayCosts.map((cost, idx) => {
           const style = getCategoryStyle(cost.item);
           const isHistorical = cost.dataFim && cost.dataFim < currentMonthStr;
           const isEditing = editingId === cost.id;
 
           return (
-            <div key={cost.id} className={cn(
+            <div key={`${cost.id}-${idx}`} className={cn(
               "bg-white p-4 rounded-2xl shadow-sm border transition-all",
               isHistorical ? "opacity-60 border-slate-100 bg-slate-50/50" : "border-slate-100",
               isEditing && "ring-2 ring-blue-500/20 border-blue-200"
@@ -1442,7 +1488,7 @@ function FixedCostsManager({ costs, onUpdate }: { costs: FixedCost[], onUpdate: 
               type="number"
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
-              placeholder="Valor (R$)"
+              placeholder="Valor Mensal/Parcela (R$)"
               className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
             <input
@@ -1453,6 +1499,44 @@ function FixedCostsManager({ costs, onUpdate }: { costs: FixedCost[], onUpdate: 
               className="w-20 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
             />
           </div>
+          
+          <div className="flex flex-col gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200/50">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={startNextMonth}
+                onChange={(e) => setStartNextMonth(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
+              />
+              <span className="text-xs font-bold text-slate-600">Começa a cobrar apenas no próximo mês?</span>
+            </label>
+            
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={isInstallment}
+                onChange={(e) => setIsInstallment(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 border-slate-300"
+              />
+              <span className="text-xs font-bold text-slate-600">É uma compra parcelada?</span>
+            </label>
+            
+            {isInstallment && (
+              <div className="flex items-center gap-2 mt-1 animate-in fade-in zoom-in-95">
+                <span className="text-xs font-semibold text-slate-500">Em quantas vezes?</span>
+                <input
+                  type="number"
+                  min="2"
+                  max="48"
+                  value={installmentsCount}
+                  onChange={(e) => setInstallmentsCount(e.target.value)}
+                  className="w-16 bg-white border border-slate-200 rounded-lg p-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                <span className="text-[10px] text-slate-400">meses</span>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleAdd}
             className="w-full bg-slate-800 text-white py-3 rounded-xl font-bold text-sm hover:bg-slate-900 transition-all active:scale-[0.98]"
@@ -1486,10 +1570,10 @@ function EarningCategoriesManager({ categories, onUpdate }: { categories: Catego
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        {categories.map((cat) => {
+        {categories.map((cat, idx) => {
           const style = getCategoryStyle(cat.nome);
           return (
-            <div key={cat.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
+            <div key={`${cat.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
               <div className="flex items-center gap-3">
                 <div className={cn("p-2 rounded-xl", style.bgColor, style.color)}>
                   {style.icon}
@@ -1561,13 +1645,13 @@ function ExpenseCategoriesManager({ categories, onUpdate }: { categories: Catego
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        {categories.filter(c => !c.parentId).map((cat) => {
+        {categories.filter(c => !c.parentId).map((cat, idx) => {
           const style = getCategoryStyle(cat.nome);
           const isSystem = cat.id === '10'; // Fechamento do Dia
           const children = categories.filter(c => c.parentId === cat.id);
 
           return (
-            <div key={cat.id} className="space-y-2">
+            <div key={`${cat.id}-${idx}`} className="space-y-2">
               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
                 <div className="flex items-center gap-3">
                   <div className={cn("p-2 rounded-xl", style.bgColor, style.color)}>
@@ -1587,10 +1671,10 @@ function ExpenseCategoriesManager({ categories, onUpdate }: { categories: Catego
               
               {children.length > 0 && (
                 <div className="ml-8 space-y-2 border-l-2 border-slate-100 pl-4">
-                  {children.map(child => {
+                  {children.map((child, idx) => {
                     const childStyle = getCategoryStyle(child.nome);
                     return (
-                      <div key={child.id} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+                      <div key={`${child.id}-${idx}`} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className={cn("p-1.5 rounded-lg", childStyle.bgColor, childStyle.color)}>
                             {childStyle.icon}
@@ -1634,9 +1718,9 @@ function ExpenseCategoriesManager({ categories, onUpdate }: { categories: Catego
               onChange={(e) => setParentCategoryId(e.target.value)}
               className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all appearance-none"
             >
-              <option value="">Nenhuma (Categoria Principal)</option>
-              {parentCategories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.nome}</option>
+              <option key="empty-parent" value="">Nenhuma (Categoria Principal)</option>
+              {parentCategories.map((cat, idx) => (
+                <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
               ))}
             </select>
           </div>
@@ -1662,9 +1746,9 @@ function MappingField({ label, value, options, onChange }: { label: string, valu
         onChange={(e) => onChange(e.target.value)}
         className="w-full bg-white border border-slate-200 p-2 rounded-xl text-xs font-medium text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none"
       >
-        <option value="">Automático (Heurística)</option>
-        {options.map(opt => (
-          <option key={opt} value={opt}>{opt}</option>
+        <option key="auto-opt" value="">Automático (Heurística)</option>
+        {options.map((opt, idx) => (
+          <option key={`${opt}-${idx}`} value={opt}>{opt}</option>
         ))}
       </select>
     </div>
@@ -1798,8 +1882,8 @@ function BacklogPanel() {
         {loading ? (
           <p className="text-center text-xs text-slate-400 py-4">Carregando ideias...</p>
         ) : items.length > 0 ? (
-          items.map(item => (
-            <div key={item.id} className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+          items.map((item, idx) => (
+            <div key={`${item.id}-${idx}`} className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
               <button 
                 onClick={() => handleToggle(item.id, item.status)}
                 className={cn(
@@ -1840,14 +1924,31 @@ function MarketingPanel() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchUsers = async () => {
+    const data = await getAllUsers();
+    setUsers(data);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      const data = await getAllUsers();
-      setUsers(data);
-      setLoading(false);
-    };
     fetchUsers();
   }, []);
+
+  const handleUpdateTrial = async (userId: string, extensionDays: number) => {
+    setLoading(true);
+    // Para estender +30 dias: data atual
+    // Para suprimir: data antiga (-31 dias)
+    const newDate = new Date();
+    if (extensionDays < 0) {
+      newDate.setDate(newDate.getDate() - 31);
+    } else {
+      // Começa novo trial a partir de hoje
+      newDate.setDate(newDate.getDate());
+    }
+    
+    await updateUserTrial(userId, newDate.toISOString());
+    await fetchUsers();
+  };
 
   if (loading) return <div className="text-center p-4 text-slate-400 text-xs">Carregando lista de usuários...</div>;
 
@@ -1862,7 +1963,7 @@ function MarketingPanel() {
         </div>
         <div className="bg-rose-50 px-3 py-1 rounded-full">
           <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest">
-            Total: {users.length}
+            Top {users.length} Recentes
           </span>
         </div>
       </div>
@@ -1873,12 +1974,17 @@ function MarketingPanel() {
             <tr className="border-b border-slate-100">
               <th className="py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Usuário</th>
               <th className="py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Acessos</th>
+              <th className="py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Acesso (Trial)</th>
               <th className="py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Último Acesso</th>
             </tr>
           </thead>
           <tbody>
-            {users.map(u => (
-              <tr key={u.id} className="border-b border-slate-50 last:border-0">
+            {users.map((u, idx) => {
+              const trialStart = u.trialStartDate ? new Date(u.trialStartDate).getTime() : 0;
+              const isExpired = trialStart ? (new Date().getTime() - trialStart) > (30 * 24 * 60 * 60 * 1000) : false;
+              
+              return (
+              <tr key={`${u.id}-${idx}`} className="border-b border-slate-50 last:border-0">
                 <td className="py-4">
                   <div className="flex flex-col">
                     <span className="text-sm font-bold text-slate-700">{u.displayName || 'Usuário'}</span>
@@ -1893,13 +1999,39 @@ function MarketingPanel() {
                     {u.visitCount || 0}
                   </span>
                 </td>
+                <td className="py-4 text-center">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className={cn(
+                      "text-[10px] font-black px-2 py-1 rounded-lg uppercase",
+                      isExpired ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"
+                    )}>
+                      {isExpired ? 'Expirado' : 'Ativo'}
+                    </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleUpdateTrial(u.id, 30)}
+                        className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded hover:bg-emerald-100 transition-colors"
+                        title="Renovar +30 dias a partir de hoje"
+                      >
+                         +30d
+                      </button>
+                      <button
+                         onClick={() => handleUpdateTrial(u.id, -1)}
+                         className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-1 rounded hover:bg-red-100 transition-colors"
+                         title="Bloquear/Expirar Imediatamente"
+                      >
+                         X
+                      </button>
+                    </div>
+                  </div>
+                </td>
                 <td className="py-4 text-right">
                   <span className="text-[10px] font-bold text-slate-500">
                     {u.lastSeen ? format(new Date(u.lastSeen), 'dd/MM HH:mm') : 'N/A'}
                   </span>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
@@ -2164,7 +2296,7 @@ function AdminPanel({ appConfig, onUpdateAppConfig }: { appConfig?: AppConfig, o
 
         <div className="pt-4 border-t border-slate-100">
           <p className="text-[10px] text-slate-400 italic">
-            * Estas estatísticas excluem o administrador leandrosolon@gmail.com e a conta de teste leandrosolon0@gmail.com.
+            * Estas estatísticas excluem o administrador leandrosolon@gmail.com.
           </p>
         </div>
       </div>

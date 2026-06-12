@@ -310,13 +310,13 @@ export default function FuelMap({ entries, categories, activeTab }: FuelMapProps
             </Marker>
           )}
 
-          {mappedEntries.map((entry) => {
+          {mappedEntries.map((entry, idx) => {
             const cat = categories.find(c => c.id === entry.categoriaId);
             const style = getCategoryStyle(cat?.nome || '');
             
             return (
               <Marker 
-                key={entry.id} 
+                key={`${entry.id}-${idx}`} 
                 position={[entry.location!.lat, entry.location!.lng]}
               >
                 <Popup>
@@ -477,7 +477,7 @@ export default function FuelMap({ entries, categories, activeTab }: FuelMapProps
                  </div>
                ) : (
                  stationsList.map((station, index) => (
-                   <div key={station.id} className="bg-white border text-left border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
+                   <div key={`${station.id}-${index}`} className="bg-white border text-left border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
                      {index === 0 && sortBy === 'price' && station.pricePerLiter > 0 && (
                        <div className="absolute top-0 right-0 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">
                          Mais Barato

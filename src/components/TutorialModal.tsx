@@ -147,7 +147,7 @@ export default function TutorialModal({
             <div className="flex justify-center gap-2">
               {steps.map((_, idx) => (
                 <div 
-                  key={idx}
+                  key={`dot-${idx}`}
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-300",
                     idx === currentStep ? "w-8 bg-blue-600" : "w-2 bg-slate-200"

@@ -51,8 +51,8 @@ export default function CampaignsHistory({ onClose }: { onClose: () => void }) {
           <p className="text-white">Carregando...</p>
         ) : (
           <div className="space-y-4">
-            {campaigns.map((c) => (
-              <div key={c.id} className="bg-white p-4 rounded-2xl shadow-lg">
+            {campaigns.map((c, idx) => (
+              <div key={`${c.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-lg">
                 <h3 className="font-bold text-gray-800 mb-2">{c.title}</h3>
                 <div className="flex gap-2">
                   <button onClick={() => deleteCampaign(c.id)} className="p-2 bg-red-100 text-red-600 rounded-lg">

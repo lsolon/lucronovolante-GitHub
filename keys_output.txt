@@ -1,0 +1,57 @@
+src/components/SettingsView.tsx:                  <div key={`${interval.id}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+src/components/SettingsView.tsx:            <div key={`${cost.id}-${idx}`} className={cn(
+src/components/SettingsView.tsx:            <div key={`${cat.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
+src/components/SettingsView.tsx:            <div key={`${cat.id}-${idx}`} className="space-y-2">
+src/components/SettingsView.tsx:                      <div key={`${child.id}-${idx}`} className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center justify-between">
+src/components/SettingsView.tsx:              <option key="empty-parent" value="">Nenhuma (Categoria Principal)</option>
+src/components/SettingsView.tsx:                <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+src/components/SettingsView.tsx:        <option key="auto-opt" value="">Automático (Heurística)</option>
+src/components/SettingsView.tsx:          <option key={`${opt}-${idx}`} value={opt}>{opt}</option>
+src/components/SettingsView.tsx:            <div key={`${item.id}-${idx}`} className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100 group">
+src/components/SettingsView.tsx:              <tr key={`${u.id}-${idx}`} className="border-b border-slate-50 last:border-0">
+src/components/MaintenanceView.tsx:            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/MaintenanceView.tsx:            <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/MaintenanceView.tsx:          <MaintenanceCard key={`${item.id}-${idx}`} item={item} currentKm={currentKm} />
+src/components/EntryForm.tsx:              key={`${cat.id}-${idx}`}
+src/components/EntryForm.tsx:                      <optgroup key={`${parent.id}-${idx}`} label={parent.nome}>
+src/components/EntryForm.tsx:                        <option key={`parent-geral-${parent.id}`} value={parent.id}>{parent.nome} (Geral)</option>
+src/components/EntryForm.tsx:                          <option key={`${child.id}-${cIdx}`} value={child.id}>{child.nome}</option>
+src/components/EntryForm.tsx:                    <option key={`${parent.id}-${idx}`} value={parent.id}>
+src/components/EntryForm.tsx:                    <option key="empty-station" value="">Selecione o Posto</option>
+src/components/EntryForm.tsx:                      <option key={`${posto}-${idx}`} value={posto}>
+src/components/EntryForm.tsx:                      key={`${type}-${idx}`}
+src/components/EntryForm.tsx:             key={star}
+src/components/Dashboard.tsx:                    <div key={`pf-${pf.item}-${pf.data}-${idx}`} className="flex justify-between text-xs text-emerald-400 font-medium">
+src/components/Dashboard.tsx:                <div key={`${cost.id}-${idx}`} className="flex justify-between items-center text-sm">
+src/components/Dashboard.tsx:                      <div key={`detail-${item.name}-${idx}`} className="flex justify-between items-center p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
+src/components/CampaignsHistory.tsx:              <div key={`${c.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-lg">
+src/components/ReportsView.tsx:              key={`${p}-${idx}`}
+src/components/ReportsView.tsx:                  key={`${r}-${idx}`}
+src/components/ReportsView.tsx:                      <Cell key={`cell-${entry.id}-${idx}`} fill={COLORS[idx % COLORS.length]} />
+src/components/ReportsView.tsx:                <div key={`breakdown-${item.id}-${index}`} className="space-y-1.5">
+src/components/ReportsView.tsx:          <div key={`report-${item.name}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
+src/components/ReportsView.tsx:                      <div key={`${groupName}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 space-y-3">
+src/components/ReportsView.tsx:                            <div key={`${entry.id}-${idx}`} className="flex justify-between items-center text-[10px]">
+src/components/ReportsView.tsx:                      <div key={`${entry.id}-${idx}`} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex items-center gap-4">
+src/components/AIVideoStudio.tsx:                    key={`sugg-${s.title}-${i}`}
+src/components/AIVideoStudio.tsx:              key={`msg-${i}-${m.role}`}
+src/components/FuelMap.tsx:          key={`map-${mappedEntries.length}-${activeTab}`}
+src/components/FuelMap.tsx:                key={`${entry.id}-${idx}`} 
+src/components/FuelMap.tsx:                   <div key={`${station.id}-${index}`} className="bg-white border text-left border-slate-100 rounded-2xl p-4 shadow-sm relative overflow-hidden group">
+src/components/TutorialModal.tsx:              key={currentStep}
+src/components/TutorialModal.tsx:                  key={`dot-${idx}`}
+src/components/EntryList.tsx:                  <option key="all" value="all">Todas</option>
+src/components/EntryList.tsx:                    <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+src/components/EntryList.tsx:              key={`${entry.id}-${index}`}
+src/components/EntryList.tsx:                        <div key={`${catId}-${idx}`} className="flex justify-between items-center">
+src/components/DashboardGraphics.tsx:                      <Cell key={`ganho-${entry.name}-${idx}`} fill="#22c55e" />
+src/components/DashboardGraphics.tsx:                      <Cell key={`despesa-${entry.name}-${idx}`} fill="#f43f5e" />
+src/components/DashboardGraphics.tsx:            <div key={`expense-${detail.name}-${index}`} className="flex items-center justify-between">
+src/components/ManualModal.tsx:                  key={activeTab}
+src/App.tsx:              key="dashboard"
+src/App.tsx:              key="graphics"
+src/App.tsx:              key="maintenance"
+src/App.tsx:              key="history"
+src/App.tsx:              key="map"
+src/App.tsx:              key="reports"
+src/App.tsx:              key="settings"

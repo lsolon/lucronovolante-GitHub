@@ -45,6 +45,7 @@ interface DashboardProps {
   maintenanceIntervals: MaintenanceInterval[];
   entries: Entry[];
   categories: { id: string; nome: string }[];
+  earningCategories: { id: string; nome: string }[];
   onViewMaintenance: () => void;
   onOpenAIStudio: () => void;
   isAdmin?: boolean;
@@ -65,10 +66,12 @@ export default function Dashboard({
   onOpenAIStudio,
   isAdmin,
   uniqueVisitors,
-  email
+  email,
+  earningCategories
 }: DashboardProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [showBurdenDetails, setShowBurdenDetails] = useState(false);
+  const [showPaidDetails, setShowPaidDetails] = useState(false);
   const [modalType, setModalType] = useState<'ganhos' | 'despesas' | null>(null);
   const [taxResult, setTaxResult] = useState<string | null>(null);
   const currentMonthStr = format(new Date(), 'yyyy-MM');
@@ -78,7 +81,10 @@ export default function Dashboard({
   const detailsList = useMemo(() => {
     if (!modalType) return [];
     const filtered = entries.filter(e => {
-        const isCurrentMonth = e.data.startsWith(currentMonthAlt) || e.data.startsWith(currentMonthStr);
+        const entryDateInfo = parseEntryDate(e.data);
+        const start = startOfMonth(new Date());
+        const end = endOfMonth(new Date());
+        const isCurrentMonth = isWithinInterval(entryDateInfo, { start, end });
         const isExpense = e.tipo === 'Despesa';
         const isEarning = e.tipo === 'Ganhos';
         
@@ -93,8 +99,15 @@ export default function Dashboard({
     });
     
     const grouped = filtered.reduce((acc, curr) => {
-        const cat = categories.find(c => c.id === curr.categoriaId)?.nome || 'Outros';
-        acc[cat] = (acc[cat] || 0) + curr.valor;
+        if (modalType === 'ganhos' && curr.ganhos) {
+            Object.entries(curr.ganhos).forEach(([id, valor]) => {
+                const catName = earningCategories.find(c => c.id === id)?.nome || 'Outros Ganhos';
+                acc[catName] = (acc[catName] || 0) + valor;
+            });
+        } else {
+            const cat = categories.find(c => c.id === curr.categoriaId)?.nome || (curr.tipo === 'Ganhos' ? 'Outros Ganhos' : 'Outros');
+            acc[cat] = (acc[cat] || 0) + curr.valor;
+        }
         return acc;
     }, {} as Record<string, number>);
     
@@ -103,6 +116,41 @@ export default function Dashboard({
       .sort((a, b) => b.total - a.total);
   }, [entries, modalType, currentMonthAlt, categories]);
   
+  const activeFixedCosts = useMemo(() => {
+    return fixedCosts.filter(fc => {
+      const start = fc.dataInicio || '0000-00';
+      const end = fc.dataFim || '9999-12';
+      return currentMonthStr >= start && currentMonthStr <= end;
+    });
+  }, [fixedCosts, currentMonthStr]);
+
+  const fixedCostDetails = useMemo(() => {
+    let savings = 0;
+    const pending: { item: string; valor: number }[] = [];
+
+    activeFixedCosts.forEach(fc => {
+      const payments = totals.paidFixedCostsDetails.filter(p => p.item.toLowerCase() === fc.item.toLowerCase());
+      const paidSum = payments.reduce((acc, p) => acc + p.valor, 0);
+      
+      // Se não há nenhum pagamento nesse item, ele está 100% pendente
+      if (payments.length === 0) {
+        pending.push({ item: fc.item, valor: fc.valorMensal });
+      } else {
+        // Se já foi pago algo mas pagou menos, o restante é considerado economia/desconto
+        const diff = fc.valorMensal - paidSum;
+        if (diff > 0) {
+          savings += diff;
+        }
+      }
+    });
+
+    return { pending, savings };
+  }, [activeFixedCosts, totals.paidFixedCostsDetails]);
+
+  const totalPendingFixedCosts = useMemo(() => {
+    return fixedCostDetails.pending.reduce((acc, p) => acc + p.valor, 0);
+  }, [fixedCostDetails]);
+
   const dailyWorkBurden = useMemo(() => {
     // Already filtered by current month in App.tsx totals calculation, but Dashboard gets ALL entries
     // Need to filter locally here to only count days in the current month
@@ -120,26 +168,16 @@ export default function Dashboard({
     if (workedDays === 0) return null;
 
     // Custo Médio = (Custos Fixos Pendentes + Despesas de Rua) / dias trabalhados
-    const totalFixed = totals.totalFixedCosts || 0;
-    const paidFixed = totals.paidFixedCostsSum || 0;
     const dailyExpenses = totals.dailyExpenses || 0;
     
-    const remainingFixedCosts = Math.max(0, totalFixed - paidFixed);
+    const remainingFixedCosts = totalPendingFixedCosts;
     const totalObligations = remainingFixedCosts + dailyExpenses;
     
     return {
       burden: workedDays > 0 ? totalObligations / workedDays : 0,
       days: workedDays
     };
-  }, [entries, fixedCosts, totals]);
-
-  const activeFixedCosts = useMemo(() => {
-    return fixedCosts.filter(fc => {
-      const start = fc.dataInicio || '0000-00';
-      const end = fc.dataFim || '9999-12';
-      return currentMonthStr >= start && currentMonthStr <= end;
-    });
-  }, [fixedCosts, currentMonthStr]);
+  }, [entries, totals, totalPendingFixedCosts]);
 
   const statusMessage = useMemo(() => {
     if (totals.progress >= 100) {
@@ -337,9 +375,17 @@ export default function Dashboard({
 
           <div className="mb-6 p-4 bg-white/5 rounded-3xl border border-white/10 flex justify-between items-center">
             <div>
-              <p className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.15em] mb-0.5">Lucro do Dia</p>
-              <p className="text-2xl font-black text-emerald-400 tracking-tighter leading-none">
-                {formatCurrency(dailyGoalData.todayProfit)}
+              <p className={cn(
+                "text-[10px] font-black uppercase tracking-[0.15em] mb-0.5",
+                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}>
+                {dailyGoalData.todayProfit >= 0 ? "Lucro do Dia" : "Falta para sair do prejuízo"}
+              </p>
+              <p className={cn(
+                "text-2xl font-black tracking-tighter leading-none",
+                dailyGoalData.todayProfit >= 0 ? "text-emerald-400" : "text-rose-400"
+              )}>
+                {formatCurrency(Math.abs(dailyGoalData.todayProfit))}
               </p>
             </div>
             <div className="text-right">
@@ -394,9 +440,26 @@ export default function Dashboard({
           <h3 className="font-bold text-white">Status do Objetivo</h3>
         </div>
         
-        <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
-          {statusMessage.icon}
-          <span className="font-bold text-white tracking-tight">{statusMessage.text}</span>
+        <div className="flex flex-col gap-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-3">
+            {statusMessage.icon}
+            <span className="font-bold text-white tracking-tight">{statusMessage.text}</span>
+          </div>
+
+          <div className="text-[11px] font-medium space-y-1">
+             {fixedCostDetails.pending.map((p, idx) => (
+                <div key={`p-${idx}`} className="flex justify-between">
+                  <span className="text-blue-300">{p.item}</span>
+                  <span className="text-white font-bold">{formatCurrency(p.valor)}</span>
+                </div>
+             ))}
+             {fixedCostDetails.savings > 0 && (
+                <div className="flex justify-between pt-1 border-t border-white/10">
+                  <span className="text-emerald-400 font-bold">Valor economizado</span>
+                  <span className="text-emerald-400 font-bold">{formatCurrency(fixedCostDetails.savings)}</span>
+                </div>
+             )}
+          </div>
         </div>
 
         <div className="mt-6 space-y-2">
@@ -413,6 +476,10 @@ export default function Dashboard({
                 totals.progress < 100 ? "bg-blue-400" : "bg-emerald-400"
               )}
             />
+          </div>
+          <div className="flex justify-between text-[10px] text-blue-300 pt-2 border-t border-white/5">
+             <span>Custo fixo pendente: {formatCurrency(totalPendingFixedCosts)}</span>
+             <span>Despesas de rua: {formatCurrency(totals.dailyExpenses)}</span>
           </div>
         </div>
       </div>
@@ -563,7 +630,7 @@ export default function Dashboard({
                 <p className="text-[10px] text-blue-200 font-black uppercase mb-2">Custos Fixos Pagos</p>
                 <div className="space-y-1">
                   {totals.paidFixedCostsDetails.map((pf, idx) => (
-                    <div key={idx} className="flex justify-between text-xs text-emerald-400 font-medium">
+                    <div key={`pf-${pf.item}-${pf.data}-${idx}`} className="flex justify-between text-xs text-emerald-400 font-medium">
                       <span>{pf.item} ({pf.data.replace(/\//g, '-')})</span>
                       <span>{formatCurrency(pf.valor)}</span>
                     </div>
@@ -596,10 +663,10 @@ export default function Dashboard({
           {showBurdenDetails && (
             <div className="mt-3 p-3 bg-white/5 rounded-xl text-[10px] text-blue-100 font-mono">
               <p>Detalhes do cálculo:</p>
-              <p>Custos Fixos Pendentes: {formatCurrency(Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0)))}</p>
+              <p>Custos Fixos Pendentes: {formatCurrency(totalPendingFixedCosts)}</p>
               <p>+ Despesas de Rua: {formatCurrency(totals.dailyExpenses || 0)}</p>
               <p>-------------------------</p>
-              <p>= Total: {formatCurrency((Math.max(0, (totals.totalFixedCosts || 0) - (totals.paidFixedCostsSum || 0))) + (totals.dailyExpenses || 0))}</p>
+              <p>= Total: {formatCurrency(totalPendingFixedCosts + (totals.dailyExpenses || 0))}</p>
               <p>÷ {dailyWorkBurden.days} dias</p>
             </div>
           )}
@@ -621,17 +688,18 @@ export default function Dashboard({
         
         <div className="space-y-3">
           {activeFixedCosts.length > 0 ? (
-            activeFixedCosts.map(cost => {
+            activeFixedCosts.map((cost, idx) => {
               const style = getCategoryStyle(cost.item);
+              const isPaid = totals.paidFixedCostsDetails.some(p => p.item.toLowerCase() === cost.item.toLowerCase());
               return (
-                <div key={cost.id} className="flex justify-between items-center text-sm">
+                <div key={`${cost.id}-${idx}`} className={cn("flex justify-between items-center text-sm p-2 rounded-xl", isPaid && "bg-emerald-900/20")}>
                   <div className="flex items-center gap-2">
                     <span className={cn("p-1.5 rounded-lg", "bg-white/5", "text-white")}>
                       {style.icon}
                     </span>
-                    <span className="text-blue-100 font-medium">{cost.item}</span>
+                    <span className={cn("font-medium", isPaid ? "text-emerald-300" : "text-blue-100")}>{cost.item}</span>
                   </div>
-                  <span className="font-bold text-white">{formatCurrency(cost.valorMensal)}</span>
+                  <span className={cn("font-bold", isPaid ? "text-emerald-400" : "text-white")}>{formatCurrency(cost.valorMensal)}</span>
                 </div>
               );
             })
@@ -647,6 +715,33 @@ export default function Dashboard({
             <span className="font-bold text-blue-100">Total Fixo</span>
             <span className="font-black text-white">{formatCurrency(totals.totalFixedCosts)}</span>
           </div>
+          
+          <button 
+            onClick={() => setShowPaidDetails(!showPaidDetails)}
+            className="w-full text-xs font-bold text-blue-300 hover:text-white flex items-center justify-center gap-1 pt-2"
+          >
+            {showPaidDetails ? 'Ocultar pagos' : 'Ver custos fixos já pagos'}
+            <ChevronRight className={cn("size-4 transition-transform", showPaidDetails && "rotate-90")} />
+          </button>
+          
+          <AnimatePresence>
+            {showPaidDetails && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="space-y-2 pt-2 border-t border-white/10"
+              >
+                  {totals.paidFixedCostsDetails.map((pf, idx) => (
+                    <div key={`paid-fc-${pf.item}-${idx}`} className="flex justify-between text-xs text-emerald-400 font-medium">
+                      <span>{pf.item} ({pf.data.replace(/\//g, '-')})</span>
+                      <span>{formatCurrency(pf.valor)}</span>
+                    </div>
+                  ))}
+                  {totals.paidFixedCostsDetails.length === 0 && <p className="text-xs text-blue-300 text-center">Nenhum custo fixo pago este mês.</p>}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -714,8 +809,13 @@ export default function Dashboard({
           * Valor calculado subtraindo despesas de rua e custos fixos totais dos ganhos brutos. 
           A meta diária considera seus custos fixos mensais, média de gastos diários e margem de 10%.
         </p>
-        <div className="mt-4 border-t border-white/10 pt-4 text-[10px] text-white/50">
-          Cálculo tributário disponível abaixo.
+        <div className="mt-4 border-t border-white/10 pt-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div className="text-[10px] text-white/50">
+            Cálculo tributário disponível abaixo.
+          </div>
+          <a href="mailto:lucronovolanteapp@gmail.com" className="text-xs font-bold text-blue-200 hover:text-white transition-colors flex items-center gap-1">
+            Dúvidas/Suporte: lucronovolanteapp@gmail.com
+          </a>
         </div>
       </div>
 
@@ -758,7 +858,7 @@ export default function Dashboard({
                 {detailsList.length > 0 ? (
                   <div className="space-y-3">
                     {detailsList.map((item, idx) => (
-                      <div key={idx} className="flex justify-between items-center p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
+                      <div key={`detail-${item.name}-${idx}`} className="flex justify-between items-center p-3 rounded-2xl border border-slate-100 bg-slate-50/50">
                         <span className="font-bold text-slate-700">{item.name}</span>
                         <span className={cn(
                           "font-black text-lg",

@@ -36,12 +36,16 @@ export interface Entry {
   qrCodeData?: string;
   linkNota?: string;
   obs?: string;
+  referenciaMes?: string; // YYYY-MM
   ganhos?: Record<string, number>; // Dynamic earnings by category ID
   ratings?: {
     servico: number;
     higiene: number;
     atendimento: number;
   };
+  manutencaoItem?: string;
+  garantiaKm?: number;
+  garantiaMeses?: number;
 }
 
 export interface AppSheetMapping {

@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, Timestamp, writeBatch, collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, serverTimestamp, Timestamp, writeBatch, collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { GlobalStats } from '../types';
 import { cleanObject } from '../lib/utils';
@@ -8,7 +8,7 @@ const VISITOR_KEY = 'lucro_no_volante_visitor_id';
 
 export async function trackVisit(user: { uid: string, email?: string | null, displayName?: string | null }) {
   // Skip tracking for admin and internal test account
-  const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+  const excludedEmails = ['leandrosolon@gmail.com'];
   if (user.email && excludedEmails.includes(user.email)) {
     console.log('Admin/Test visit - skipping stats increment');
     return;
@@ -64,9 +64,9 @@ export async function trackContribution(userId: string) {
 export async function getAllUsers(): Promise<any[]> {
   try {
     const usersRef = collection(db, 'users');
-    const q = query(usersRef, orderBy('lastSeen', 'desc'));
+    const q = query(usersRef, orderBy('lastSeen', 'desc'), limit(100)); // Added limit(100) to drastically reduce reads
     const querySnapshot = await getDocs(q);
-    const excludedEmails = ['leandrosolon@gmail.com', 'leandrosolon0@gmail.com'];
+    const excludedEmails = ['leandrosolon@gmail.com'];
     
     return querySnapshot.docs
       .map(doc => {
@@ -83,6 +83,17 @@ export async function getAllUsers(): Promise<any[]> {
   } catch (error) {
     console.error('Error getting all users:', error);
     return [];
+  }
+}
+
+export async function updateUserTrial(userId: string, trialStartDate: string): Promise<boolean> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { trialStartDate }, { merge: true });
+    return true;
+  } catch (error) {
+    console.error('Error updating user trial:', error);
+    return false;
   }
 }
 

@@ -37,11 +37,12 @@ import { motion, AnimatePresence } from 'motion/react';
 interface EntryListProps {
   entries: Entry[];
   categories: Category[];
+  earningCategories: Category[];
   onDelete: (id: string) => void;
   onEdit: (entry: Entry) => void;
 }
 
-export default function EntryList({ entries, categories, onDelete, onEdit }: EntryListProps) {
+export default function EntryList({ entries, categories, earningCategories, onDelete, onEdit }: EntryListProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'Ganhos' | 'Despesa'>('all');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
@@ -50,6 +51,8 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
   const [searchTerm, setSearchTerm] = useState('');
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
   const [selectedEntry, setSelectedEntry] = useState<Entry | null>(null);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'value_desc' | 'value_asc'>('date_desc');
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -64,7 +67,7 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
       if (filterCategoryId !== 'all' && entry.categoriaId !== filterCategoryId) return false;
 
       // Date filter
-      const entryDate = typeof entry.data === 'string' ? parseISO(entry.data) : (entry.data as any);
+      const entryDate = typeof entry.data === 'string' ? parseEntryDate(entry.data) : (entry.data as any);
       if (startDate) {
         const start = startOfDay(parseISO(startDate));
         if (isBefore(entryDate, start)) return false;
@@ -86,13 +89,28 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
       return true;
     });
 
-    // Sort by createdAt descending (newest first)
+    // Sort
     return filtered.sort((a, b) => {
-      const dateA = a.createdAt || a.data;
-      const dateB = b.createdAt || b.data;
-      return dateB.localeCompare(dateA);
+      if (sortOrder === 'date_desc' || sortOrder === 'date_asc') {
+        const dateA = parseEntryDate(a.data).getTime();
+        const dateB = parseEntryDate(b.data).getTime();
+        
+        if (dateA !== dateB) {
+          return sortOrder === 'date_desc' ? dateB - dateA : dateA - dateB;
+        } else {
+          // Fallback to createdAt for exact same date
+          const timeA = a.createdAt || '00:00:00';
+          const timeB = b.createdAt || '00:00:00';
+          return sortOrder === 'date_desc' ? timeB.localeCompare(timeA) : timeA.localeCompare(timeB);
+        }
+      } else if (sortOrder === 'value_desc') {
+        return b.valor - a.valor;
+      } else if (sortOrder === 'value_asc') {
+        return a.valor - b.valor;
+      }
+      return 0;
     });
-  }, [entries, filterType, filterCategoryId, startDate, endDate, searchTerm, categories]);
+  }, [entries, filterType, filterCategoryId, startDate, endDate, searchTerm, categories, sortOrder]);
 
   const clearFilters = () => {
     setFilterType('all');
@@ -108,21 +126,30 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
     <div className="space-y-4 text-slate-900">
       <div className="flex justify-between items-center px-2">
         <h2 className="font-black text-white text-lg tracking-tight">Histórico</h2>
-        <button 
-          onClick={() => setIsFilterOpen(!isFilterOpen)}
-          className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all border shadow-sm",
-            isFilterOpen || hasActiveFilters
-              ? "bg-blue-600 border-blue-600 text-white shadow-blue-900/20" 
-              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-          )}
-        >
-          <Filter size={14} />
-          Filtros
-          {hasActiveFilters && (
-            <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
-          )}
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => setSortOrder(prev => prev === 'date_desc' ? 'date_asc' : 'date_desc')}
+            className="p-2 bg-white/10 hover:bg-white/20 rounded-2xl text-white transition-all shadow-sm"
+            title="Alternar ordem por data"
+          >
+            <Calendar size={16} className={cn(sortOrder === 'date_asc' ? 'rotate-180' : '')} />
+          </button>
+          <button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all border shadow-sm",
+              isFilterOpen || hasActiveFilters
+                ? "bg-blue-600 border-blue-600 text-white shadow-blue-900/20" 
+                : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+            )}
+          >
+            <Filter size={14} />
+            Filtros
+            {hasActiveFilters && (
+              <span className="w-2 h-2 bg-white rounded-full animate-pulse" />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filter Panel */}
@@ -168,10 +195,25 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
                   onChange={(e) => setFilterCategoryId(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
                 >
-                  <option value="all">Todas</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                  <option key="all" value="all">Todas</option>
+                  {categories.map((cat, idx) => (
+                    <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
                   ))}
+                </select>
+              </div>
+
+              {/* Sorting */}
+              <div className="space-y-2 col-span-2">
+                <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Ordenar por</label>
+                <select 
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as any)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
+                >
+                  <option value="date_desc">Mais recentes primeiro</option>
+                  <option value="date_asc">Mais antigos primeiro</option>
+                  <option value="value_desc">Valor (Maior primeiro)</option>
+                  <option value="value_asc">Valor (Menor primeiro)</option>
                 </select>
               </div>
 
@@ -234,11 +276,15 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
           {filteredEntries.map((entry, index) => {
           const category = categories.find(c => c.id === entry.categoriaId);
           const date = parseEntryDate(entry.data);
-          const style = getCategoryStyle(entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || 'Outros'));
+          // Older versions used categoriaId to store the fixed cost string name directly.
+          const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
+          const defaultCategoryName = entry.tipo === 'Ganhos' ? 'Outros Ganhos' : (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa');
+          const displayedCategoryName = entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || defaultCategoryName);
+          const style = getCategoryStyle(displayedCategoryName);
           
           return (
             <div 
-              key={entry.id}
+              key={`${entry.id}-${index}`}
               onClick={() => setSelectedEntry(entry)}
               className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 group cursor-pointer hover:border-blue-200 hover:shadow-md transition-all active:scale-[0.99]"
             >
@@ -254,7 +300,7 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-bold text-slate-800 truncate">
-                      {entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : category?.nome}
+                      {displayedCategoryName}
                     </h4>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                       {format(date, "dd 'de' MMMM", { locale: ptBR })}
@@ -385,7 +431,7 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDelete(entry.id);
+                    setEntryToDelete(entry.id);
                   }}
                   className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
                 >
@@ -538,12 +584,12 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
                 <div className="space-y-3">
                   <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Detalhamento por Plataforma</h4>
                   <div className="bg-slate-50 rounded-3xl p-4 space-y-3 border border-slate-100">
-                    {Object.entries(selectedEntry.ganhos).map(([catId, val]) => {
-                      const cat = categories.find(c => c.id === catId);
+                    {Object.entries(selectedEntry.ganhos).map(([catId, val], idx) => {
+                      const cat = earningCategories.find(c => c.id === catId);
                       if (!val) return null;
                       return (
-                        <div key={catId} className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-600">{cat?.nome || 'Outros'}</span>
+                        <div key={`${catId}-${idx}`} className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-600">{cat?.nome || 'Outros Ganhos'}</span>
                           <span className="text-sm font-black text-emerald-600">{formatCurrency(val)}</span>
                         </div>
                       );
@@ -628,14 +674,62 @@ export default function EntryList({ entries, categories, onDelete, onEdit }: Ent
               </button>
               <button 
                 onClick={() => {
-                  if (confirm('Deseja realmente excluir este lançamento?')) {
-                    onDelete(selectedEntry.id);
-                    setSelectedEntry(null);
-                  }
+                  setEntryToDelete(selectedEntry.id);
                 }}
                 className="px-6 bg-white border border-slate-200 text-rose-600 py-4 rounded-2xl font-bold hover:bg-rose-50 transition-all active:scale-95"
               >
                 <Trash2 size={18} />
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+
+    {/* Delete Confirmation Modal */}
+    <AnimatePresence>
+      {entryToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setEntryToDelete(null)}
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-md"
+          />
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="relative w-full max-w-sm bg-white rounded-[40px] p-8 shadow-2xl text-center overflow-hidden"
+          >
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-rose-500" />
+            
+            <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Trash2 className="text-rose-600 size-10" />
+            </div>
+            
+            <h3 className="text-xl font-black text-slate-800 mb-2">Excluir Lançamento?</h3>
+            <p className="text-sm text-slate-500 mb-8 leading-relaxed font-medium">
+              Esta ação é <span className="text-rose-600 font-black uppercase">permanente</span> e não poderá ser desfeita. O registro será removido definitivamente do seu histórico.
+            </p>
+            
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => {
+                  onDelete(entryToDelete);
+                  setEntryToDelete(null);
+                  setSelectedEntry(null);
+                }}
+                className="w-full bg-rose-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-rose-100 hover:bg-rose-700 transition-all active:scale-95"
+              >
+                Sim, Excluir Definitivamente
+              </button>
+              <button 
+                onClick={() => setEntryToDelete(null)}
+                className="w-full bg-slate-100 text-slate-600 py-4 rounded-2xl font-black hover:bg-slate-200 transition-all active:scale-95"
+              >
+                Cancelar
               </button>
             </div>
           </motion.div>

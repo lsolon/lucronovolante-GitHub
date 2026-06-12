@@ -19,6 +19,15 @@ export function parseEntryDate(dateStr: string | Date): Date {
     return new Date(year, month, day);
   }
 
+  // Handle dd/MM/yyyy or dd-MM-yyyy format 
+  const brDateMatch = dateStr.match(/^(\d{2})[/-](\d{2})[/-](\d{4})(?:T| )?.*$/);
+  if (brDateMatch) {
+    const day = parseInt(brDateMatch[1], 10);
+    const month = parseInt(brDateMatch[2], 10) - 1;
+    const year = parseInt(brDateMatch[3], 10);
+    return new Date(year, month, day);
+  }
+
   return parseISO(dateStr);
 }
 
@@ -92,7 +101,7 @@ export function truncateLargeFields<T>(obj: T, maxLength = 500000): T {
 
   Object.keys(newObj).forEach(key => {
     const val = (newObj as any)[key];
-    if (typeof val === 'string' && val.length > maxLength) {
+    if (typeof val === 'string' && val.length > maxLength && key !== 'photoUrl') {
       console.warn(`Field "${key}" truncated because it exceeded ${maxLength} characters.`);
       (newObj as any)[key] = val.substring(0, maxLength) + '... [TRUNCATED]';
     } else if (typeof val === 'object' && val !== null) {
