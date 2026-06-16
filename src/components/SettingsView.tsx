@@ -609,9 +609,9 @@ export default function SettingsView({
               <div className="relative">
                 <input 
                   type="number"
-                  value={currentKm || ''}
+                  value={lastRecordedKm || ''}
                   onChange={(e) => onUpdateCurrentKm?.(Number(e.target.value))}
-                  placeholder={lastRecordedKm > 0 ? `Ex: ${lastRecordedKm}` : "Ex: 15000"}
+                  placeholder="Ex: 15000"
                   className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-4 px-5 text-lg font-black text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
                 />
                 <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">km</div>

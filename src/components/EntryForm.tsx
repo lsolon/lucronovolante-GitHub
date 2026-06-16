@@ -52,7 +52,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
   });
   const [categoriaId, setCategoriaId] = useState(initialData?.categoriaId || '10'); // Default to Fechamento do Dia
   const [valor, setValor] = useState(initialData?.valor?.toString() || '');
-  const [km, setKm] = useState(initialData?.km?.toString() || '');
+  const [km, setKm] = useState(initialData?.km?.toString() || (lastKm > 0 ? lastKm.toString() : ''));
   const [ganhos, setGanhos] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     earningCategories.forEach(cat => {

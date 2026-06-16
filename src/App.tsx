@@ -659,22 +659,15 @@ export default function App() {
   }, [state.entries, state.categories, state.maintenanceIntervals]);
 
   const lastRecordedKm = useMemo(() => {
-    // 1. Try to find the highest KM in entries (most reliable for current car state)
-    const kmEntries = state.entries.filter(e => e.km && e.km > 0);
-    if (kmEntries.length > 0) {
-      // Sort by date desc to get the chronologically last KM
-      const sortedKmEntries = [...kmEntries].sort((a, b) => {
-        const dateA = a.data + ' ' + (a.createdAt?.split(' ')[1] || '00:00:00');
-        const dateB = b.data + ' ' + (b.createdAt?.split(' ')[1] || '00:00:00');
-        return dateB.localeCompare(dateA);
-      });
-      return sortedKmEntries[0].km || 0;
+    let maxKm = state.currentKm || 0;
+    if (state.entries && state.entries.length > 0) {
+      for (const e of state.entries) {
+        if (e.km && typeof e.km === 'number' && e.km > maxKm) {
+          maxKm = e.km;
+        }
+      }
     }
-    
-    // 2. Fallback to currentKm from config
-    if (state.currentKm > 0) return state.currentKm;
-    
-    return 0;
+    return maxKm;
   }, [state.currentKm, state.entries]);
 
   const handleAddEntry = async (entryData: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => {
@@ -712,8 +705,9 @@ export default function App() {
         }, { merge: true });
       }
 
-      // Update current KM in user config if provided
-      if (latestKm > 0) {
+      // Update current KM in user config if provided and higher than previous max
+      const absoluteMaxKm = Math.max(state.currentKm || 0, latestKm);
+      if (latestKm > 0 && latestKm >= absoluteMaxKm) {
         const userDocRef = doc(db, 'users', user.uid);
         batch.set(userDocRef, { currentKm: latestKm }, { merge: true });
       }
