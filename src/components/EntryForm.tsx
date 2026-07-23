@@ -16,7 +16,8 @@ import {
   X,
   CheckCircle2,
   Calendar,
-  Star
+  Star,
+  Coins
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -35,13 +36,14 @@ interface EntryFormProps {
   onSubmit: (entry: Omit<Entry, 'id'> | Omit<Entry, 'id'>[]) => void;
   categories: Category[];
   earningCategories: Category[];
+  refundCategories: Category[];
   lastKm: number;
   entries: Entry[];
   initialData?: Entry;
   fixedCosts: FixedCost[];
 }
 
-export default function EntryForm({ onSubmit, categories, earningCategories, lastKm, entries, initialData, fixedCosts }: EntryFormProps) {
+export default function EntryForm({ onSubmit, categories, earningCategories, refundCategories, lastKm, entries, initialData, fixedCosts }: EntryFormProps) {
   const [tipo, setTipo] = useState<EntryType>(initialData?.tipo || 'Ganhos');
   const [data, setData] = useState(() => {
     if (initialData?.data) {
@@ -59,6 +61,16 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       initial[cat.id] = initialData?.ganhos?.[cat.id]?.toString() || '';
     });
     return initial;
+  });
+  const [reembolsos, setReembolsos] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+    refundCategories.forEach(cat => {
+      initial[cat.id] = initialData?.reembolsos?.[cat.id]?.toString() || '';
+    });
+    return initial;
+  });
+  const [showRefunds, setShowRefunds] = useState(() => {
+    return !!initialData?.reembolsos && Object.values(initialData.reembolsos).some(v => Number(v) > 0);
   });
   const [obs, setObs] = useState(initialData?.obs || '');
   const [combustivel, setCombustivel] = useState(initialData?.combustivel || 'Gasolina');
@@ -469,22 +481,24 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const currentFormTotal = useMemo(() => {
     if (tipo === 'Despesa') return Number(valor) || 0;
-    return Object.values(ganhos).reduce((acc: number, val) => acc + (Number(val) || 0), 0);
-  }, [tipo, ganhos, valor]);
+    const gTotal = Object.values(ganhos).reduce((acc: number, val) => acc + (Number(val) || 0), 0);
+    const rTotal = showRefunds ? Object.values(reembolsos).reduce((acc: number, val) => acc + (Number(val) || 0), 0) : 0;
+    return gTotal + rTotal;
+  }, [tipo, ganhos, reembolsos, showRefunds, valor]);
 
   const todayEarnings = useMemo(() => {
-    const now = new Date();
-    const startOfTodayDt = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return entries
       .filter(e => {
+        // Exclude the current entry being edited so we don't double count it
+        if (initialData?.id && e.id === initialData.id) return false;
         if (e.tipo !== 'Ganhos' || !e.data) return false;
-        const eDate = parseEntryDate(e.data);
-        return eDate.getFullYear() === startOfTodayDt.getFullYear() && 
-               eDate.getMonth() === startOfTodayDt.getMonth() && 
-               eDate.getDate() === startOfTodayDt.getDate();
+        
+        // e.data is format yyyy/MM/dd, data is yyyy-MM-dd
+        const eData = e.data.replace(/\//g, '-');
+        return eData === data;
       })
       .reduce((acc, curr) => acc + (curr.valor || 0), 0);
-  }, [entries]);
+  }, [entries, data, initialData?.id]);
 
   // Auto-calculate total value for fueling
   useEffect(() => {
@@ -527,6 +541,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
     let entryValor = 0;
     const numericGanhos: Record<string, number> = {};
+    const numericReembolsos: Record<string, number> = {};
 
     if (tipo === 'Ganhos') {
       Object.entries(ganhos).forEach(([id, val]) => {
@@ -536,6 +551,16 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
           entryValor += n;
         }
       });
+
+      if (showRefunds) {
+        Object.entries(reembolsos).forEach(([id, val]) => {
+          const n = Number(val.toString().replace(',', '.'));
+          if (!isNaN(n) && n > 0) {
+            numericReembolsos[id] = n;
+            entryValor += n;
+          }
+        });
+      }
       
       if (entryValor <= 0) {
         setFormError('Por favor, insira pelo menos um valor de ganho.');
@@ -648,6 +673,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
       qrCodeData: qrCodeData || undefined,
       linkNota: linkNota || undefined,
       ganhos: numericGanhos,
+      reembolsos: showRefunds ? numericReembolsos : undefined,
       obs,
       referenciaMes: isFixedCost ? referenciaMes : undefined,
       garantiaKm: numGarantiaKm > 0 ? numGarantiaKm : undefined,
@@ -663,6 +689,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
 
   const handleGanhosChange = (id: string, value: string) => {
     setGanhos(prev => ({ ...prev, [id]: value }));
+  };
+
+  const handleRefundsChange = (id: string, value: string) => {
+    setReembolsos(prev => ({ ...prev, [id]: value }));
   };
 
   return (
@@ -762,6 +792,42 @@ export default function EntryForm({ onSubmit, categories, earningCategories, las
               icon={cat.nome.toLowerCase() === 'uber' ? <Car className="text-slate-400" size={18} /> : <MoreHorizontal className="text-slate-400" size={18} />}
             />
           ))}
+
+          {/* Reembolso Toggle */}
+          <div className="pt-2">
+            <label className="flex items-center gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 hover:bg-slate-100/50 transition-colors cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={showRefunds} 
+                onChange={(e) => setShowRefunds(e.target.checked)} 
+                className="rounded text-blue-600 focus:ring-blue-500/20 size-5 cursor-pointer"
+              />
+              <div>
+                <p className="text-sm font-bold text-slate-700">Incluir Reembolsos / Ressarcimentos</p>
+                <p className="text-[11px] text-slate-500">Registre valores de pedágio, combustível ou outras despesas reembolsadas</p>
+              </div>
+            </label>
+          </div>
+
+          {showRefunds && (
+            <div className="space-y-4 p-5 bg-blue-50/40 rounded-3xl border border-blue-100/50 animate-in fade-in slide-in-from-top-2 duration-200">
+              <h4 className="text-[11px] font-black text-blue-500 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Coins size={14} /> Valores de Reembolso
+              </h4>
+              
+              {refundCategories.map((cat, idx) => (
+                <InputGroup 
+                  key={`ref-${cat.id}-${idx}`}
+                  label={cat.nome} 
+                  value={reembolsos[cat.id] || ''} 
+                  onChange={(v) => handleRefundsChange(cat.id, v)} 
+                  placeholder="R$ 0,00" 
+                  type="number"
+                  icon={<Coins className="text-slate-400" size={18} />}
+                />
+              ))}
+            </div>
+          )}
 
           {currentFormTotal > 0 && (
             <div className="space-y-3 pt-4 border-t border-slate-100">

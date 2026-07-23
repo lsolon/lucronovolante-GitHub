@@ -38,6 +38,7 @@ export interface Entry {
   obs?: string;
   referenciaMes?: string; // YYYY-MM
   ganhos?: Record<string, number>; // Dynamic earnings by category ID
+  reembolsos?: Record<string, number>; // Dynamic refunds by category ID
   ratings?: {
     servico: number;
     higiene: number;
@@ -99,6 +100,7 @@ export interface AppState {
   fixedCosts: FixedCost[];
   categories: Category[];
   earningCategories: Category[];
+  refundCategories: Category[];
   currentKm: number;
   targetKm: number;
   maintenanceIntervals: MaintenanceInterval[];

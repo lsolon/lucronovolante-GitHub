@@ -97,7 +97,18 @@ export async function compressImage(base64Str: string, maxWidth = 800, quality =
 export function truncateLargeFields<T>(obj: T, maxLength = 500000): T {
   if (!obj || typeof obj !== 'object') return obj;
 
-  const newObj = Array.isArray(obj) ? [...obj] : { ...obj };
+  // Handle arrays
+  if (Array.isArray(obj)) {
+    return obj.map(item => truncateLargeFields(item, maxLength)) as any;
+  }
+
+  // Only recurse into plain objects. 
+  // Firestore sentinels (FieldValue) and other special objects should be left as is.
+  if (obj.constructor !== Object) {
+    return obj;
+  }
+
+  const newObj = { ...obj };
 
   Object.keys(newObj).forEach(key => {
     const val = (newObj as any)[key];

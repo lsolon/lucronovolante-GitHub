@@ -18,7 +18,8 @@ import {
   Wind,
   AirVent,
   Thermometer,
-  Battery
+  Battery,
+  Coins
 } from 'lucide-react';
 import { ReactNode } from 'react';
 
@@ -200,6 +201,15 @@ export function getCategoryStyle(name: string): CategoryStyle {
       color: 'text-emerald-600',
       bgColor: 'bg-emerald-50',
       borderColor: 'border-emerald-100'
+    };
+  }
+
+  if (normalized.includes('reembolso') || normalized.includes('ressarcimento') || normalized.includes('pedágio') || normalized.includes('pedagio')) {
+    return {
+      icon: <Coins size={20} />,
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-100'
     };
   }
   

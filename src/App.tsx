@@ -35,7 +35,7 @@ import { format, startOfMonth, endOfMonth, isWithinInterval, parseISO, startOfDa
 import { ptBR } from 'date-fns/locale';
 import { cn, cleanObject, parseEntryDate, truncateLargeFields } from './lib/utils';
 import { Entry, FixedCost, Category, AppState, AppSheetMapping, MaintenanceInterval } from './types';
-import { DEFAULT_CATEGORIES, DEFAULT_FIXED_COSTS, DEFAULT_EARNING_CATEGORIES, DEFAULT_MAINTENANCE_INTERVALS } from './constants';
+import { DEFAULT_CATEGORIES, DEFAULT_FIXED_COSTS, DEFAULT_EARNING_CATEGORIES, DEFAULT_MAINTENANCE_INTERVALS, DEFAULT_REFUND_CATEGORIES } from './constants';
 
 // Firebase
 import { auth, db, googleProvider } from './firebase';
@@ -124,6 +124,7 @@ export default function App() {
     fixedCosts: DEFAULT_FIXED_COSTS,
     categories: DEFAULT_CATEGORIES,
     earningCategories: DEFAULT_EARNING_CATEGORIES,
+    refundCategories: DEFAULT_REFUND_CATEGORIES,
     currentKm: 0,
     targetKm: 0,
     maintenanceIntervals: DEFAULT_MAINTENANCE_INTERVALS,
@@ -324,6 +325,17 @@ export default function App() {
           }
         }
 
+        // Deduplicate refund categories
+        const rawRefundCats = data.refundCategories || DEFAULT_REFUND_CATEGORIES;
+        const uniqueRefundCats: Category[] = [];
+        const seenRefundIds = new Set<string>();
+        for (const cat of rawRefundCats) {
+          if (!seenRefundIds.has(cat.id)) {
+            uniqueRefundCats.push(cat);
+            seenRefundIds.add(cat.id);
+          }
+        }
+
         let trialStart = data.trialStartDate;
         
         if (user.email === 'leandrosolon0@gmail.com' && data.extendedTrial2026) {
@@ -338,6 +350,7 @@ export default function App() {
           fixedCosts: uniqueFixedCosts,
           categories: mergedCategories,
           earningCategories: uniqueEarningCats,
+          refundCategories: uniqueRefundCats,
           currentKm: data.currentKm || 0,
           targetKm: data.targetKm || 0,
           maintenanceIntervals: mergedIntervals,
@@ -750,6 +763,16 @@ export default function App() {
     }
   }, [user]);
 
+  const handleUpdateRefundCategories = useCallback(async (categories: Category[]) => {
+    if (!user) return;
+    try {
+      const userDocRef = doc(db, 'users', user.uid);
+      await setDoc(userDocRef, cleanObject({ refundCategories: categories }), { merge: true });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `users/${user.uid}`);
+    }
+  }, [user]);
+
   const handleUpdateEntries = useCallback(async (entries: Entry[]) => {
     // This is used for clear all or bulk import
     if (!user) return;
@@ -1105,6 +1128,7 @@ export default function App() {
                 entries={state.entries} 
                 categories={state.categories}
                 earningCategories={state.earningCategories}
+                refundCategories={state.refundCategories}
                 onDelete={handleDeleteEntry} 
                 onEdit={(entry) => {
                   setEditingEntry(entry);
@@ -1138,6 +1162,7 @@ export default function App() {
                 entries={state.entries} 
                 categories={state.categories}
                 earningCategories={state.earningCategories}
+                refundCategories={state.refundCategories}
                 monthlyTotals={totals}
               />
             </motion.div>
@@ -1154,6 +1179,8 @@ export default function App() {
                 onUpdateFixedCosts={handleUpdateFixedCosts}
                 earningCategories={state.earningCategories}
                 onUpdateEarningCategories={handleUpdateEarningCategories}
+                refundCategories={state.refundCategories}
+                onUpdateRefundCategories={handleUpdateRefundCategories}
                 entries={state.entries}
                 onUpdateEntries={handleUpdateEntries}
                 categories={state.categories}
@@ -1291,6 +1318,7 @@ export default function App() {
                   onSubmit={handleAddEntry} 
                   categories={state.categories} 
                   earningCategories={state.earningCategories}
+                  refundCategories={state.refundCategories}
                   lastKm={lastRecordedKm}
                   entries={state.entries}
                   initialData={editingEntry || undefined}

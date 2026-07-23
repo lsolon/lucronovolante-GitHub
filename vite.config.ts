@@ -15,12 +15,22 @@ export default defineConfig(({mode}) => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         workbox: {
           maximumFileSizeToCacheInBytes: 5000000, // Increase limit to 5MB
+          importScripts: ['/sw-custom.js'],
+          navigateFallbackDenylist: [
+            /^\/api\//,
+            /google-analytics\.com/,
+            /googletagmanager\.com/,
+          ],
+          ignoreURLParametersMatching: [/^utm_/, /^fbclid$/],
         },
         manifest: {
           name: 'Lucro no Volante',
           short_name: 'LucroVolante',
           description: 'Controle de ganhos e gastos para motoristas de aplicativo',
           theme_color: '#000000',
+          background_color: '#ffffff',
+          display: 'standalone',
+          start_url: '/',
           icons: [
             {
               src: 'pwa-192x192.png',

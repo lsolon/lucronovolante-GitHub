@@ -31,6 +31,12 @@ export const DEFAULT_EARNING_CATEGORIES: Category[] = [
   { id: 'outros', nome: 'Outros' },
 ];
 
+export const DEFAULT_REFUND_CATEGORIES: Category[] = [
+  { id: 'ref_pedagio', nome: 'Pedágio' },
+  { id: 'ref_combustivel', nome: 'Combustível' },
+  { id: 'ref_outros', nome: 'Outros' },
+];
+
 export const GAS_STATIONS = [
   'Ipiranga',
   'Petrobras / BR',

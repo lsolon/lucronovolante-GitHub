@@ -27,13 +27,14 @@ import {
   Send,
   Trash,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  Coins
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { format, addMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, truncateLargeFields } from '../lib/utils';
-import { FixedCost, Category, Entry, AppSheetMapping, MaintenanceInterval, AppConfig, GlobalStats } from '../types';
+import { FixedCost, Category, Entry, EntryType, AppSheetMapping, MaintenanceInterval, AppConfig, GlobalStats } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { fetchAppSheetData, mapAppSheetToEntry, addRowsToAppSheet, mapEntryToAppSheet } from '../services/appsheetService';
 import { getGlobalStats, getAllUsers, updateUserTrial } from '../services/statsService';
@@ -51,6 +52,8 @@ interface SettingsViewProps {
   onUpdateFixedCosts: (costs: FixedCost[]) => void;
   earningCategories: Category[];
   onUpdateEarningCategories: (categories: Category[]) => void;
+  refundCategories: Category[];
+  onUpdateRefundCategories: (categories: Category[]) => void;
   entries: Entry[];
   onUpdateEntries: (entries: Entry[]) => void;
   categories: Category[];
@@ -76,6 +79,8 @@ export default function SettingsView({
   onUpdateFixedCosts, 
   earningCategories, 
   onUpdateEarningCategories,
+  refundCategories,
+  onUpdateRefundCategories,
   entries,
   onUpdateEntries,
   categories,
@@ -109,6 +114,9 @@ export default function SettingsView({
   const [isFetchingColumns, setIsFetchingColumns] = useState(false);
   const [localMapping, setLocalMapping] = useState<Partial<AppSheetMapping>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [exportType, setExportType] = useState<'all' | 'Ganhos' | 'Despesa'>('all');
+  const [exportCategoryId, setExportCategoryId] = useState<string>('all');
 
   const currentMapping: AppSheetMapping = {
     data: localMapping.data ?? appSheetMapping?.data ?? '',
@@ -230,13 +238,61 @@ export default function SettingsView({
 
   const handleExportExcel = () => {
     try {
-      const dataToExport = entries.map(entry => {
+      const filteredEntriesForExport = entries.filter(entry => {
+        // Filter by Type
+        if (exportType !== 'all' && entry.tipo !== exportType) return false;
+
+        // Filter by Category
+        if (exportCategoryId !== 'all') {
+          if (entry.tipo === 'Despesa') {
+            return entry.categoriaId === exportCategoryId;
+          } else if (entry.tipo === 'Ganhos') {
+            const matchesPlatform = entry.ganhos && entry.ganhos[exportCategoryId] !== undefined && Number(entry.ganhos[exportCategoryId]) > 0;
+            const matchesRefund = entry.reembolsos && entry.reembolsos[exportCategoryId] !== undefined && Number(entry.reembolsos[exportCategoryId]) > 0;
+            const matchesFechamento = exportCategoryId === '10' && (entry.ganhos && Object.values(entry.ganhos).some(v => Number(v) > 0));
+
+            return matchesPlatform || matchesRefund || matchesFechamento;
+          }
+        }
+        return true;
+      });
+
+      if (filteredEntriesForExport.length === 0) {
+        setImportStatus({ success: false, message: 'Nenhum lançamento encontrado para os filtros selecionados.' });
+        return;
+      }
+
+      const dataToExport = filteredEntriesForExport.map(entry => {
         const category = categories.find(c => c.id === entry.categoriaId);
+        
+        const getEntryTitle = (e: typeof entry) => {
+          if (e.tipo === 'Ganhos') {
+            const hasGanhos = e.ganhos && Object.values(e.ganhos).some(v => Number(v) > 0);
+            const refundItems = e.reembolsos ? Object.entries(e.reembolsos).filter(([_, val]) => Number(val) > 0) : [];
+            
+            if (hasGanhos) {
+              return 'Fechamento do Dia';
+            } else if (refundItems.length > 0) {
+              if (refundItems.length === 1) {
+                const catId = refundItems[0][0];
+                const cat = refundCategories?.find(c => c.id === catId);
+                return `Reembolso de ${cat?.nome || 'Outros'}`;
+              } else {
+                return 'Reembolsos';
+              }
+            } else {
+              return 'Fechamento do Dia';
+            }
+          } else {
+            return category?.nome || 'Outros';
+          }
+        };
+
         const base = {
           Data: entry.data,
           Criado_Em: entry.createdAt || '',
           Tipo: entry.tipo,
-          Categoria: entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || 'Outros'),
+          Categoria: getEntryTitle(entry),
           Valor: entry.valor,
           KM: entry.km || '',
           Km_Rodado: entry.kmRodado || '',
@@ -268,7 +324,22 @@ export default function SettingsView({
       const worksheet = XLSX.utils.json_to_sheet(safeData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Lancamentos");
-      XLSX.writeFile(workbook, `Motorista_2026_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+      let filterSuffix = '';
+      if (exportType !== 'all') {
+        filterSuffix += `_${exportType}`;
+      }
+      if (exportCategoryId !== 'all') {
+        const catName = categories.find(c => c.id === exportCategoryId)?.nome || 
+                        earningCategories.find(c => c.id === exportCategoryId)?.nome || 
+                        refundCategories?.find(c => c.id === exportCategoryId)?.nome || 
+                        (exportCategoryId === '10' ? 'Fechamento' : '');
+        if (catName) {
+          filterSuffix += `_${catName.replace(/\s+/g, '_')}`;
+        }
+      }
+
+      XLSX.writeFile(workbook, `Motorista_2026_Export${filterSuffix}_${new Date().toISOString().split('T')[0]}.xlsx`);
     } catch (error) {
       console.error('Erro ao exportar:', error);
       setImportStatus({ success: false, message: 'Erro ao gerar arquivo Excel.' });
@@ -405,11 +476,19 @@ export default function SettingsView({
 
           const valor = Number(row.Valor || row.Value || 0);
           
+          let parsedTipo: EntryType = 'Despesa';
+          const rowTipo = String(row.Tipo || row.Type || '').trim().toLowerCase();
+          if (rowTipo.includes('ganho') || rowTipo.includes('receita') || rowTipo.includes('reembolso') || rowTipo.includes('faturamento') || rowTipo.includes('rendimento') || rowTipo.includes('entrada')) {
+            parsedTipo = 'Ganhos';
+          } else if (rowTipo.includes('despesa') || rowTipo.includes('custo') || rowTipo.includes('saída') || rowTipo.includes('saida')) {
+            parsedTipo = 'Despesa';
+          }
+          
           const entry: Entry = {
             id: crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15),
             data: entryData.includes('T') ? format(new Date(entryData), 'yyyy/MM/dd') : entryData,
             createdAt: createdAt,
-            tipo: (row.Tipo || row.Type) as any || 'Despesa',
+            tipo: parsedTipo,
             categoriaId: catId,
             valor: isNaN(valor) ? 0 : valor,
             km: (row.KM && !isNaN(Number(row.KM))) ? Number(row.KM) : undefined,
@@ -428,16 +507,69 @@ export default function SettingsView({
           if (entry.tipo === 'Ganhos') {
             entry.categoriaId = '10';
             const platformGanhos: Record<string, number> = {};
+            const platformReembolsos: Record<string, number> = {};
+            let hasColumnGanhosOrReembolsos = false;
+
             earningCategories.forEach(cat => {
               const val = row[`Ganho_${cat.nome}`] || row[`Earning_${cat.nome}`] || row[cat.nome];
-              if (val !== undefined) {
+              if (val !== undefined && val !== '') {
                 const numVal = Number(val);
-                if (!isNaN(numVal)) {
+                if (!isNaN(numVal) && numVal > 0) {
                   platformGanhos[cat.id] = numVal;
+                  hasColumnGanhosOrReembolsos = true;
                 }
               }
             });
+
+            if (refundCategories) {
+              refundCategories.forEach(cat => {
+                const val = row[`Reembolso_${cat.nome}`] || row[`Refund_${cat.nome}`] || row[cat.nome];
+                if (val !== undefined && val !== '') {
+                  const numVal = Number(val);
+                  if (!isNaN(numVal) && numVal > 0) {
+                    platformReembolsos[cat.id] = numVal;
+                    hasColumnGanhosOrReembolsos = true;
+                  }
+                }
+              });
+            }
+
+            if (!hasColumnGanhosOrReembolsos && categoryName) {
+              const categoryNameLower = String(categoryName).toLowerCase();
+              
+              const foundRefundCat = refundCategories?.find(cat => 
+                categoryNameLower.includes(cat.nome.toLowerCase()) || 
+                cat.nome.toLowerCase().includes(categoryNameLower) ||
+                (cat.id === 'ref_pedagio' && (categoryNameLower.includes('pedagio') || categoryNameLower.includes('pedágio'))) ||
+                (cat.id === 'ref_combustivel' && categoryNameLower.includes('combustivel'))
+              );
+
+              if (foundRefundCat) {
+                platformReembolsos[foundRefundCat.id] = entry.valor;
+              } else {
+                const foundEarningCat = earningCategories.find(cat => 
+                  categoryNameLower.includes(cat.nome.toLowerCase()) ||
+                  cat.nome.toLowerCase().includes(categoryNameLower)
+                );
+
+                if (foundEarningCat) {
+                  platformGanhos[foundEarningCat.id] = entry.valor;
+                } else if (categoryNameLower.includes('reembolso')) {
+                  const refundOutros = refundCategories?.find(c => c.id === 'ref_outros') || refundCategories?.[0];
+                  if (refundOutros) {
+                    platformReembolsos[refundOutros.id] = entry.valor;
+                  }
+                } else {
+                  const earningOutros = earningCategories.find(c => c.id === 'outros') || earningCategories[0];
+                  if (earningOutros) {
+                    platformGanhos[earningOutros.id] = entry.valor;
+                  }
+                }
+              }
+            }
+
             entry.ganhos = platformGanhos;
+            entry.reembolsos = platformReembolsos;
           }
 
           return entry;
@@ -780,7 +912,33 @@ export default function SettingsView({
       )}
 
       {activeSection === 'earnings' && (
-        <EarningCategoriesManager categories={earningCategories} onUpdate={onUpdateEarningCategories} />
+        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-200">
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+            <div>
+              <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                <TrendingUp className="text-emerald-500" size={20} />
+                Plataformas de Ganhos
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Configure as plataformas onde você realiza corridas ou entregas.
+              </p>
+            </div>
+            <EarningCategoriesManager categories={earningCategories} onUpdate={onUpdateEarningCategories} />
+          </div>
+
+          <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 space-y-4">
+            <div>
+              <h3 className="text-base font-black text-slate-800 flex items-center gap-2">
+                <Coins className="text-blue-500" size={20} />
+                Tipos de Reembolso / Ressarcimento
+              </h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Defina tipos de reembolso para acompanhar de forma integrada aos seus ganhos.
+              </p>
+            </div>
+            <RefundCategoriesManager categories={refundCategories} onUpdate={onUpdateRefundCategories} />
+          </div>
+        </div>
       )}
       
       {activeSection === 'share' && (
@@ -1155,8 +1313,70 @@ export default function SettingsView({
                     Exportar para Excel
                   </h3>
                   <p className="text-sm text-slate-500">
-                    Baixe todos os seus lançamentos em um arquivo .xlsx para backup ou análise detalhada.
+                    Baixe todos ou parte dos seus lançamentos em um arquivo .xlsx para backup ou análise detalhada.
                   </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 pb-1">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Filtrar por Tipo</label>
+                      <select 
+                        value={exportType}
+                        onChange={(e) => {
+                          setExportType(e.target.value as any);
+                          setExportCategoryId('all');
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-3 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
+                      >
+                        <option value="all">Todos os tipos</option>
+                        <option value="Ganhos">Ganhos (Faturamento)</option>
+                        <option value="Despesa">Despesas (Custos)</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-black text-slate-400 uppercase tracking-wider ml-1">Filtrar por Categoria</label>
+                      <select 
+                        value={exportCategoryId}
+                        onChange={(e) => setExportCategoryId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-2.5 px-3 text-xs font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
+                      >
+                        <option value="all">Todas as categorias</option>
+                        
+                        {(exportType === 'all' || exportType === 'Despesa') && (
+                          <optgroup label="Despesas">
+                            {categories.map((cat, idx) => (
+                              <option key={`exp-exp-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                            ))}
+                          </optgroup>
+                        )}
+
+                        {(exportType === 'all' || exportType === 'Ganhos') && (
+                          <>
+                            <optgroup label="Fechamentos">
+                              <option value="10">Fechamento do Dia</option>
+                            </optgroup>
+                            
+                            {earningCategories && earningCategories.length > 0 && (
+                              <optgroup label="Plataformas / Ganhos">
+                                {earningCategories.map((cat, idx) => (
+                                  <option key={`exp-earn-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                            
+                            {refundCategories && refundCategories.length > 0 && (
+                              <optgroup label="Reembolsos">
+                                {refundCategories.map((cat, idx) => (
+                                  <option key={`exp-ref-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                                ))}
+                              </optgroup>
+                            )}
+                          </>
+                        )}
+                      </select>
+                    </div>
+                  </div>
+
                   <button
                     onClick={handleExportExcel}
                     className="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 hover:bg-blue-700 transition-all"
@@ -1602,6 +1822,73 @@ function EarningCategoriesManager({ categories, onUpdate }: { categories: Catego
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder="Ex: InDrive"
+            className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
+          />
+          <button
+            onClick={handleAdd}
+            className="bg-slate-800 text-white px-6 py-3 rounded-xl font-bold text-sm hover:bg-slate-900 transition-all active:scale-[0.98]"
+          >
+            Adicionar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RefundCategoriesManager({ categories, onUpdate }: { categories: Category[], onUpdate: (categories: Category[]) => void }) {
+  const [newName, setNewName] = useState('');
+
+  const handleAdd = () => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const newCat: Category = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).substring(2, 15),
+      nome: trimmed
+    };
+    onUpdate([...categories, newCat]);
+    setNewName('');
+  };
+
+  const handleDelete = (id: string) => {
+    onUpdate(categories.filter(c => c.id !== id));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        {categories.map((cat, idx) => {
+          const style = getCategoryStyle(cat.nome);
+          return (
+            <div key={`${cat.id}-${idx}`} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between group">
+              <div className="flex items-center gap-3">
+                <div className={cn("p-2 rounded-xl", style.bgColor, style.color)}>
+                  {style.icon}
+                </div>
+                <h4 className="font-bold text-slate-800">{cat.nome}</h4>
+              </div>
+              <button 
+                onClick={() => handleDelete(cat.id)}
+                className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="bg-slate-100 p-5 rounded-3xl space-y-4 border-2 border-dashed border-slate-200">
+        <h3 className="font-bold text-slate-600 text-sm flex items-center gap-2">
+          <Plus size={18} />
+          Adicionar Novo Tipo de Reembolso
+        </h3>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Ex: Pedágio, Combustível, Alimentação..."
             className="flex-1 bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
           <button

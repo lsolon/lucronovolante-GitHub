@@ -38,11 +38,12 @@ interface EntryListProps {
   entries: Entry[];
   categories: Category[];
   earningCategories: Category[];
+  refundCategories: Category[];
   onDelete: (id: string) => void;
   onEdit: (entry: Entry) => void;
 }
 
-export default function EntryList({ entries, categories, earningCategories, onDelete, onEdit }: EntryListProps) {
+export default function EntryList({ entries, categories, earningCategories, refundCategories, onDelete, onEdit }: EntryListProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'Ganhos' | 'Despesa'>('all');
   const [filterCategoryId, setFilterCategoryId] = useState('all');
@@ -54,6 +55,32 @@ export default function EntryList({ entries, categories, earningCategories, onDe
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'value_desc' | 'value_asc'>('date_desc');
 
+  const getEntryTitle = (entry: Entry) => {
+    if (entry.tipo === 'Ganhos') {
+      const hasGanhos = entry.ganhos && Object.values(entry.ganhos).some(v => Number(v) > 0);
+      const refundItems = entry.reembolsos ? Object.entries(entry.reembolsos).filter(([_, val]) => Number(val) > 0) : [];
+      
+      if (hasGanhos) {
+        return 'Fechamento do Dia';
+      } else if (refundItems.length > 0) {
+        if (refundItems.length === 1) {
+          const catId = refundItems[0][0];
+          const cat = refundCategories?.find(c => c.id === catId);
+          return `Reembolso de ${cat?.nome || 'Outros'}`;
+        } else {
+          return 'Reembolsos';
+        }
+      } else {
+        return 'Fechamento do Dia';
+      }
+    } else {
+      const category = categories.find(c => c.id === entry.categoriaId);
+      const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
+      const defaultCategoryName = isCategoryNameString ? entry.categoriaId : 'Custo/Despesa';
+      return category?.nome || defaultCategoryName;
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
@@ -64,7 +91,13 @@ export default function EntryList({ entries, categories, earningCategories, onDe
       if (filterType !== 'all' && entry.tipo !== filterType) return false;
 
       // Category filter
-      if (filterCategoryId !== 'all' && entry.categoriaId !== filterCategoryId) return false;
+      if (filterCategoryId !== 'all') {
+        const matchesExpense = entry.categoriaId === filterCategoryId;
+        const matchesPlatform = entry.ganhos && entry.ganhos[filterCategoryId] !== undefined && Number(entry.ganhos[filterCategoryId]) > 0;
+        const matchesRefund = entry.reembolsos && entry.reembolsos[filterCategoryId] !== undefined && Number(entry.reembolsos[filterCategoryId]) > 0;
+        
+        if (!matchesExpense && !matchesPlatform && !matchesRefund) return false;
+      }
 
       // Date filter
       const entryDate = typeof entry.data === 'string' ? parseEntryDate(entry.data) : (entry.data as any);
@@ -77,13 +110,31 @@ export default function EntryList({ entries, categories, earningCategories, onDe
         if (isAfter(entryDate, end)) return false;
       }
 
-      // Search term (obs or category name)
+      // Search term (obs, category name, or entry title)
       if (searchTerm) {
-        const category = categories.find(c => c.id === entry.categoriaId);
         const searchLower = searchTerm.toLowerCase();
         const matchesObs = entry.obs?.toLowerCase().includes(searchLower);
-        const matchesCat = category?.nome.toLowerCase().includes(searchLower);
-        if (!matchesObs && !matchesCat) return false;
+        
+        const displayedTitle = getEntryTitle(entry).toLowerCase();
+        const matchesTitle = displayedTitle.includes(searchLower);
+        
+        let matchesPlatformOrRefund = false;
+        if (entry.tipo === 'Ganhos') {
+          if (entry.ganhos) {
+            matchesPlatformOrRefund = Object.keys(entry.ganhos).some(catId => {
+              const cat = earningCategories?.find(c => c.id === catId);
+              return cat?.nome.toLowerCase().includes(searchLower);
+            });
+          }
+          if (!matchesPlatformOrRefund && entry.reembolsos) {
+            matchesPlatformOrRefund = Object.keys(entry.reembolsos).some(catId => {
+              const cat = refundCategories?.find(c => c.id === catId);
+              return cat?.nome.toLowerCase().includes(searchLower);
+            });
+          }
+        }
+
+        if (!matchesObs && !matchesTitle && !matchesPlatformOrRefund) return false;
       }
 
       return true;
@@ -178,7 +229,10 @@ export default function EntryList({ entries, categories, earningCategories, onDe
                 <label className="text-[11px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">Tipo</label>
                 <select 
                   value={filterType}
-                  onChange={(e) => setFilterType(e.target.value as any)}
+                  onChange={(e) => {
+                    setFilterType(e.target.value as any);
+                    setFilterCategoryId('all');
+                  }}
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
                 >
                   <option value="all">Todos</option>
@@ -196,9 +250,34 @@ export default function EntryList({ entries, categories, earningCategories, onDe
                   className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-sm font-bold text-slate-700 focus:outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer"
                 >
                   <option key="all" value="all">Todas</option>
-                  {categories.map((cat, idx) => (
-                    <option key={`${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
-                  ))}
+                  
+                  {(filterType === 'all' || filterType === 'Despesa') && (
+                    <optgroup label="Despesas">
+                      {categories.map((cat, idx) => (
+                        <option key={`exp-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {(filterType === 'all' || filterType === 'Ganhos') && (
+                    <>
+                      {earningCategories && earningCategories.length > 0 && (
+                        <optgroup label="Plataformas / Ganhos">
+                          {earningCategories.map((cat, idx) => (
+                            <option key={`earn-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      
+                      {refundCategories && refundCategories.length > 0 && (
+                        <optgroup label="Reembolsos">
+                          {refundCategories.map((cat, idx) => (
+                            <option key={`ref-${cat.id}-${idx}`} value={cat.id}>{cat.nome}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -276,10 +355,7 @@ export default function EntryList({ entries, categories, earningCategories, onDe
           {filteredEntries.map((entry, index) => {
           const category = categories.find(c => c.id === entry.categoriaId);
           const date = parseEntryDate(entry.data);
-          // Older versions used categoriaId to store the fixed cost string name directly.
-          const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
-          const defaultCategoryName = entry.tipo === 'Ganhos' ? 'Outros Ganhos' : (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa');
-          const displayedCategoryName = entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || defaultCategoryName);
+          const displayedCategoryName = getEntryTitle(entry);
           const style = getCategoryStyle(displayedCategoryName);
           
           return (
@@ -489,14 +565,14 @@ export default function EntryList({ entries, categories, earningCategories, onDe
               <div className="flex items-center gap-4">
                 <div className={cn(
                   "p-4 rounded-2xl shadow-sm",
-                  getCategoryStyle(selectedEntry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (categories.find(c => c.id === selectedEntry.categoriaId)?.nome || 'Outros')).bgColor,
-                  getCategoryStyle(selectedEntry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (categories.find(c => c.id === selectedEntry.categoriaId)?.nome || 'Outros')).color
+                  getCategoryStyle(getEntryTitle(selectedEntry)).bgColor,
+                  getCategoryStyle(getEntryTitle(selectedEntry)).color
                 )}>
-                  {getCategoryStyle(selectedEntry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (categories.find(c => c.id === selectedEntry.categoriaId)?.nome || 'Outros')).icon}
+                  {getCategoryStyle(getEntryTitle(selectedEntry)).icon}
                 </div>
                 <div>
                   <h3 className="text-xl font-black text-slate-800">
-                    {selectedEntry.tipo === 'Ganhos' ? 'Fechamento do Dia' : categories.find(c => c.id === selectedEntry.categoriaId)?.nome}
+                    {getEntryTitle(selectedEntry)}
                   </h3>
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
                     {format(parseEntryDate(selectedEntry.data), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
@@ -591,6 +667,25 @@ export default function EntryList({ entries, categories, earningCategories, onDe
                         <div key={`${catId}-${idx}`} className="flex justify-between items-center">
                           <span className="text-sm font-bold text-slate-600">{cat?.nome || 'Outros Ganhos'}</span>
                           <span className="text-sm font-black text-emerald-600">{formatCurrency(val)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Reembolsos Breakdown */}
+              {selectedEntry.tipo === 'Ganhos' && selectedEntry.reembolsos && Object.keys(selectedEntry.reembolsos).length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Reembolsos / Ressarcimentos</h4>
+                  <div className="bg-blue-50/40 rounded-3xl p-4 space-y-3 border border-blue-100/50">
+                    {Object.entries(selectedEntry.reembolsos).map(([catId, val], idx) => {
+                      const cat = refundCategories?.find(c => c.id === catId);
+                      if (!val) return null;
+                      return (
+                        <div key={`${catId}-${idx}`} className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-slate-600">{cat?.nome || 'Outros'}</span>
+                          <span className="text-sm font-black text-blue-600">{formatCurrency(val)}</span>
                         </div>
                       );
                     })}

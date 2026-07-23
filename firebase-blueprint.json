@@ -1,5 +1,80 @@
 {
   "entities": {
+    "FixedCost": {
+      "title": "Fixed Cost",
+      "description": "A monthly fixed expense for the driver",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "item": { "type": "string" },
+        "valorMensal": { "type": "number" },
+        "diaVencimento": { "type": "number" },
+        "dataInicio": { "type": "string", "description": "YYYY-MM" },
+        "dataFim": { "type": "string", "description": "YYYY-MM" }
+      }
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Expense or earning category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "nome": { "type": "string" },
+        "parentId": { "type": "string" }
+      }
+    },
+    "MaintenanceInterval": {
+      "title": "Maintenance Interval",
+      "description": "Recommended interval for a maintenance item",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "item": { "type": "string" },
+        "intervaloKm": { "type": "number" }
+      }
+    },
+    "AppSheetMapping": {
+      "title": "AppSheet Mapping",
+      "description": "Field mapping for AppSheet API",
+      "type": "object",
+      "properties": {
+        "data": { "type": "string" },
+        "tipo": { "type": "string" },
+        "valor": { "type": "string" },
+        "categoria": { "type": "string" },
+        "km": { "type": "string" },
+        "obs": { "type": "string" },
+        "posto": { "type": "string" },
+        "combustivel": { "type": "string" },
+        "quantidade": { "type": "string" },
+        "valorUnitario": { "type": "string" }
+      }
+    },
+    "Message": {
+      "title": "Campaign Message",
+      "description": "A single message in an AI campaign",
+      "type": "object",
+      "properties": {
+        "role": { "type": "string", "enum": ["user", "model"] },
+        "text": { "type": "string" },
+        "image": { "type": "string" },
+        "video": { "type": "string" }
+      }
+    },
+    "AICampaign": {
+      "title": "AI Campaign",
+      "description": "A collection of messages for an AI generation task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "messages": {
+          "type": "array",
+          "items": { "$ref": "Message" }
+        },
+        "createdAt": { "type": "string" }
+      }
+    },
     "UserConfig": {
       "title": "User Configuration",
       "description": "Global settings for a specific driver",
@@ -13,14 +88,17 @@
         "hasContributed": { "type": "boolean", "description": "True if user has added any data" },
         "fixedCosts": {
           "type": "array",
+          "items": { "$ref": "FixedCost" },
           "description": "List of monthly fixed costs"
         },
         "categories": {
           "type": "array",
+          "items": { "$ref": "Category" },
           "description": "Expense categories"
         },
         "earningCategories": {
           "type": "array",
+          "items": { "$ref": "Category" },
           "description": "Earning platforms/categories"
         },
         "currentKm": {
@@ -33,6 +111,7 @@
         },
         "maintenanceIntervals": {
           "type": "array",
+          "items": { "$ref": "MaintenanceInterval" },
           "description": "Maintenance items and their KM intervals"
         },
         "trialStartDate": {
@@ -40,8 +119,7 @@
           "description": "ISO timestamp of first login"
         },
         "appSheetMapping": {
-          "type": "object",
-          "description": "Mapping for AppSheet imports"
+          "$ref": "AppSheetMapping"
         }
       }
     },
@@ -67,8 +145,22 @@
         "categoriaId": { "type": "string" },
         "valor": { "type": "number" },
         "km": { "type": "number" },
+        "kmRodado": { "type": "number" },
         "obs": { "type": "string" },
-        "ganhos": { "type": "object", "description": "Breakdown of earnings by platform" }
+        "posto": { "type": "string" },
+        "bandeiraPosto": { "type": "string" },
+        "combustivel": { "type": "string" },
+        "quantidade": { "type": "number" },
+        "valorUnitario": { "type": "number" },
+        "referenciaMes": { "type": "string" },
+        "manutencaoItem": { "type": "string" },
+        "garantiaKm": { "type": "number" },
+        "garantiaMeses": { "type": "number" },
+        "photoUrl": { "type": "string" },
+        "qrCodeData": { "type": "string" },
+        "linkNota": { "type": "string" },
+        "ganhos": { "type": "object", "description": "Breakdown of earnings by platform" },
+        "reembolsos": { "type": "object", "description": "Breakdown of refunds by platform" }
       },
       "required": ["data", "tipo", "valor", "categoriaId"]
     },
@@ -114,6 +206,10 @@
     "/users/{userId}/entries/{entryId}": {
       "schema": "Entry",
       "description": "Financial records for the user"
+    },
+    "/users/{userId}/campaigns/{campaignId}": {
+      "schema": "AICampaign",
+      "description": "AI generated marketing campaigns"
     }
   }
 }

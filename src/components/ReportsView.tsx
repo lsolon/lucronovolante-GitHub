@@ -70,13 +70,14 @@ interface ReportsViewProps {
   entries: Entry[];
   categories: Category[];
   earningCategories: Category[];
+  refundCategories?: Category[];
   monthlyTotals: any;
 }
 
 type ReportPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type ViewMode = 'reports' | 'graphics';
 
-export default function ReportsView({ entries, categories, earningCategories, monthlyTotals }: ReportsViewProps) {
+export default function ReportsView({ entries, categories, earningCategories, refundCategories, monthlyTotals }: ReportsViewProps) {
   const [period, setPeriod] = useState<ReportPeriod>('monthly');
   const [viewMode, setViewMode] = useState<ViewMode>('reports');
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -905,19 +906,37 @@ export default function ReportsView({ entries, categories, earningCategories, mo
                   // Grouped View
                   Object.entries(
                     drillDown.entries.reduce((acc: Record<string, Entry[]>, entry) => {
-                      if (entry.tipo === 'Ganhos' && entry.ganhos) {
-                        // Expand earnings by platform
-                        Object.entries(entry.ganhos).forEach(([platformId, valor]) => {
-                           const platformCat = earningCategories.find(c => c.id === platformId);
-                           const platformName = platformCat?.nome || 'Outros Ganhos';
-                           if (!acc[platformName]) acc[platformName] = [];
-                           // Just clone the entry and set the valor for this platform slice
-                           acc[platformName].push({ ...entry, valor });
-                        });
+                      if (entry.tipo === 'Ganhos') {
+                        let expanded = false;
+                        if (entry.ganhos) {
+                          Object.entries(entry.ganhos).forEach(([platformId, valor]) => {
+                             if (!valor) return;
+                             const platformCat = earningCategories.find(c => c.id === platformId);
+                             const platformName = platformCat?.nome || 'Outros Ganhos';
+                             if (!acc[platformName]) acc[platformName] = [];
+                             acc[platformName].push({ ...entry, valor });
+                             expanded = true;
+                          });
+                        }
+                        if (entry.reembolsos) {
+                          Object.entries(entry.reembolsos).forEach(([refundId, valor]) => {
+                             if (!valor) return;
+                             const refundCat = refundCategories?.find(c => c.id === refundId);
+                             const refundName = refundCat ? `Reembolso de ${refundCat.nome}` : 'Reembolsos';
+                             if (!acc[refundName]) acc[refundName] = [];
+                             acc[refundName].push({ ...entry, valor });
+                             expanded = true;
+                          });
+                        }
+                        if (!expanded) {
+                          const name = 'Fechamento do Dia';
+                          if (!acc[name]) acc[name] = [];
+                          acc[name].push(entry);
+                        }
                       } else {
                         const category = categories.find(c => c.id === entry.categoriaId);
                         const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
-                        const name = entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa'));
+                        const name = category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa');
                         if (!acc[name]) acc[name] = [];
                         acc[name].push(entry);
                       }
@@ -957,15 +976,30 @@ export default function ReportsView({ entries, categories, earningCategories, mo
                 ) : (
                   // Simple List View
                   drillDown.entries.flatMap(entry => {
-                    if (entry.tipo === 'Ganhos' && entry.ganhos) {
-                      return Object.entries(entry.ganhos).map(([platformId, valor]) => {
-                         const platformCat = earningCategories.find(c => c.id === platformId);
-                         return { ...entry, valor, fallbackName: platformCat?.nome || 'Outros Ganhos' };
-                      });
+                    if (entry.tipo === 'Ganhos') {
+                      const slices: any[] = [];
+                      if (entry.ganhos) {
+                        Object.entries(entry.ganhos).forEach(([platformId, valor]) => {
+                          if (!valor) return;
+                          const platformCat = earningCategories.find(c => c.id === platformId);
+                          slices.push({ ...entry, valor, fallbackName: platformCat?.nome || 'Outros Ganhos' });
+                        });
+                      }
+                      if (entry.reembolsos) {
+                        Object.entries(entry.reembolsos).forEach(([refundId, valor]) => {
+                          if (!valor) return;
+                          const refundCat = refundCategories?.find(c => c.id === refundId);
+                          slices.push({ ...entry, valor, fallbackName: refundCat ? `Reembolso de ${refundCat.nome}` : 'Reembolsos' });
+                        });
+                      }
+                      if (slices.length === 0) {
+                        slices.push({ ...entry, fallbackName: 'Fechamento do Dia' });
+                      }
+                      return slices;
                     } else {
                       const category = categories.find(c => c.id === entry.categoriaId);
                       const isCategoryNameString = entry.categoriaId && entry.categoriaId.length > 2 && isNaN(Number(entry.categoriaId));
-                      return [{ ...entry, fallbackName: entry.tipo === 'Ganhos' ? 'Fechamento do Dia' : (category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa')) }];
+                      return [{ ...entry, fallbackName: category?.nome || (isCategoryNameString ? entry.categoriaId : 'Custo/Despesa') }];
                     }
                   }).map((item, idx) => {
                     const entry = item;

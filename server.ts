@@ -2,18 +2,88 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
+import { GoogleGenAI } from "@google/genai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize Gemini
+const ai = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
+  
+  app.use(express.json({ limit: '10mb' }));
+
   console.log(`Starting server in ${process.env.NODE_ENV || 'development'} mode`);
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok", env: process.env.NODE_ENV });
+  });
+
+  app.post("/api/gemini", async (req, res) => {
+    try {
+      const { text, history, systemInstruction, imageConfig } = req.body;
+      
+      if (!text) {
+        return res.status(400).json({ error: "Text is required" });
+      }
+
+      if (imageConfig) {
+        // Image Generation
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [{ parts: [{ text: `${systemInstruction}\n\nUsuário pediu: ${text}` }] }],
+        });
+
+        let imageUrl = '';
+        let modelText = '';
+
+        if (response.candidates && response.candidates[0] && response.candidates[0].content) {
+          for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+            } else if (part.text) {
+              modelText += part.text;
+            }
+          }
+        }
+        
+        return res.json({ text: modelText, image: imageUrl });
+      } else {
+        // Text Generation
+        const formattedHistory = (history || []).map((m: any) => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }));
+
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [
+            ...formattedHistory,
+            { role: 'user', parts: [{ text }] }
+          ],
+          config: {
+            systemInstruction,
+            temperature: 0.7,
+          }
+        });
+
+        return res.json({ text: response.text });
+      }
+    } catch (error: any) {
+      console.error("Gemini API Error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate content" });
+    }
   });
 
   app.get("/api/fetch-url", async (req, res) => {
