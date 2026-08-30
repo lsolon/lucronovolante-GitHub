@@ -186,7 +186,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   }, [categoriaId, hasLocation, tipo, isMaintenance, isTrocaOleo]);
 
   const handleGetLocation = () => {
-    if (!navigator.geolocation) return;
+    if (typeof window === 'undefined' || !navigator.geolocation) return;
     setIsGettingLocation(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -197,9 +197,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
         setIsGettingLocation(false);
       },
       (err) => {
-        console.error('Error getting location', err);
+        console.warn('Geolocation unavailable or denied:', err?.message || err?.code);
         setIsGettingLocation(false);
-      }
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
     );
   };
 

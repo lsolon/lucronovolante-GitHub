@@ -132,7 +132,7 @@ export default function App() {
     appConfig: {
       publishedVersion: APP_VERSION,
       betaVersion: APP_VERSION,
-      maintenanceMode: false
+      maintenanceMode: true
     },
     isConfigLoaded: false
   });
@@ -439,7 +439,7 @@ export default function App() {
           appConfig: {
             publishedVersion: '1.1.3',
             betaVersion: '1.1.3',
-            maintenanceMode: false
+            maintenanceMode: true
           },
           isConfigLoaded: true
         }));

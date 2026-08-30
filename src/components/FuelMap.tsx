@@ -57,7 +57,7 @@ export default function FuelMap({ entries, categories, activeTab }: FuelMapProps
 
   // Ask for user location to calculate "nearest"
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setUserLocation({
@@ -66,8 +66,10 @@ export default function FuelMap({ entries, categories, activeTab }: FuelMapProps
           });
         },
         (error) => {
-          console.error("Error getting location: ", error);
-        }
+          // Graceful fallback when permission is denied or location is unavailable
+          console.warn("Location not available or permission denied:", error?.message || error?.code);
+        },
+        { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
       );
     }
   }, []);
