@@ -20,6 +20,7 @@ import {
 import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, FixedCost, MaintenanceInterval } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
+import { getAllEmptyTankCycles } from '../lib/fuel-calculator';
 import PWAInstallButton from './PWAInstallButton';
 
 interface DashboardProps {
@@ -212,6 +213,10 @@ export default function Dashboard({
     const percent = Math.min(100, (currentKm / targetKm) * 100);
     return { percent };
   }, [currentKm, targetKm]);
+
+  const fuelCyclesSummary = useMemo(() => {
+    return getAllEmptyTankCycles(entries, categories as any);
+  }, [entries, categories]);
 
   const maintenanceStatus = useMemo(() => {
     return maintenanceIntervals.map(interval => {
@@ -576,6 +581,60 @@ export default function Dashboard({
           </p>
         </div>
       )}
+
+      {/* Autonomia & Consumo Real (Tanque Vazio) */}
+      {fuelCyclesSummary.cycles.length > 0 && (() => {
+        const lastCycle = fuelCyclesSummary.cycles[fuelCyclesSummary.cycles.length - 1];
+        return (
+          <div className="bg-gradient-to-br from-amber-500/20 via-slate-900/40 to-slate-900/60 backdrop-blur-md p-5 rounded-3xl shadow-xl border border-amber-500/30 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-2xl border border-amber-500/30">
+                  <Fuel size={22} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-base">Consumo Real (Tanque Vazio)</h3>
+                  <p className="text-xs text-amber-200/80 font-medium">Medição real entre um tanque vazio e outro</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/30 uppercase tracking-wider">
+                {fuelCyclesSummary.cycles.length} {fuelCyclesSummary.cycles.length === 1 ? 'Ciclo Concluído' : 'Ciclos Concluídos'}
+              </span>
+            </div>
+
+            {/* Último Ciclo */}
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-2.5">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-black text-amber-300 uppercase tracking-wider text-[10px]">Último Ciclo ({lastCycle.combustivel})</span>
+                <span className="text-blue-200 font-medium text-[11px]">{lastCycle.startDate} ➔ {lastCycle.endDate}</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center pt-1">
+                <div className="p-2 bg-white/5 rounded-xl">
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Km Rodados</p>
+                  <p className="text-base font-black text-white">+{lastCycle.kmRodados} km</p>
+                </div>
+                <div className="p-2 bg-white/5 rounded-xl">
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Consumo Real</p>
+                  <p className="text-base font-black text-amber-400">{lastCycle.mediaConsumo.toFixed(2)} <span className="text-[10px] text-slate-300">km/{lastCycle.unit}</span></p>
+                </div>
+                <div className="p-2 bg-white/5 rounded-xl">
+                  <p className="text-[9px] font-bold text-slate-300 uppercase">Custo / Km</p>
+                  <p className="text-base font-black text-emerald-400">{formatCurrency(lastCycle.custoPorKm)}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Médias por tipo de combustível se houver mais de 1 ciclo */}
+            {fuelCyclesSummary.cycles.length > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-blue-200">
+                <span>Total rodado em ciclos: <b className="text-white">+{fuelCyclesSummary.totalKmRodados} km</b></span>
+                <span>Média geral: <b className="text-amber-300">{fuelCyclesSummary.mediaGeralConsumo.toFixed(2)} km/L</b></span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Main Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

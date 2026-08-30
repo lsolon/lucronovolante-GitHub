@@ -18,7 +18,10 @@ import {
   Calendar,
   Star,
   Coins,
-  Check
+  Check,
+  Gauge,
+  Zap,
+  Info
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -31,6 +34,7 @@ import { Entry, EntryType, Category, FixedCost } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
 import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../services/geminiService';
+import { calculateEmptyTankCycle } from '../lib/fuel-calculator';
 import { Sparkles, Loader2, Wand2 } from 'lucide-react';
 
 interface EntryFormProps {
@@ -520,6 +524,35 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     const diff = Number(km) - lastRefuelingKm;
     return diff > 0 ? diff : null;
   }, [km, lastRefuelingKm]);
+
+  const emptyTankCyclePreview = useMemo(() => {
+    if (!isAbastecimento || !km) return null;
+    const currentKmNum = Number(km.toString().replace(',', '.'));
+    if (isNaN(currentKmNum) || currentKmNum <= 0) return null;
+
+    return calculateEmptyTankCycle(
+      {
+        id: initialData?.id,
+        data,
+        km: currentKmNum,
+        quantidade: quantidade ? Number(quantidade.replace(',', '.')) : undefined,
+        valor: valor ? Number(valor.replace(',', '.')) : undefined,
+        combustivel,
+        tanqueVazio,
+        categoriaId
+      },
+      entries,
+      categories
+    );
+  }, [isAbastecimento, km, data, quantidade, valor, combustivel, tanqueVazio, categoriaId, entries, categories, initialData?.id]);
+
+  const hasPrevEmptyTankInHistory = useMemo(() => {
+    if (!isAbastecimento) return false;
+    return entries.some(e => {
+      if (initialData?.id && e.id === initialData.id) return false;
+      return e.tanqueVazio && e.km && e.km > 0;
+    });
+  }, [isAbastecimento, entries, initialData?.id]);
 
   const oilLifePreview = useMemo(() => {
     if (!isTrocaOleo || !km) return null;
@@ -1049,15 +1082,15 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-black text-slate-800">Abastecido com Tanque Vazio</span>
+                      <span className="text-sm font-black text-slate-800">Abastecido com Tanque/Cilindro Vazio</span>
                       {tanqueVazio && (
                         <span className="px-2 py-0.5 bg-amber-200 text-amber-900 text-[10px] font-black rounded-full uppercase tracking-wider">
-                          Reserva
+                          Zerado / Reserva
                         </span>
                       )}
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-0.5">
-                      Marque se o veículo estava no final do tanque ou na reserva
+                      Marque quando abastecer com o tanque zerado para calcular o consumo real e km do ciclo
                     </p>
                   </div>
                 </div>
@@ -1071,6 +1104,15 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                   {tanqueVazio && <Check size={14} strokeWidth={3} />}
                 </div>
               </div>
+
+              {!tanqueVazio && hasPrevEmptyTankInHistory && (
+                <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl flex items-start gap-2 text-xs text-amber-900">
+                  <Info size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                  <p>
+                    <b>Dica:</b> Você já possui um abastecimento anterior com tanque vazio. Se o veículo chegou no posto vazio/zerado agora, marque a opção acima para calcular o consumo médio e km exatos rodados com aquele combustível!
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -1294,7 +1336,71 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
           icon={<Car className="text-slate-400" size={18} />}
         />
         
-        {kmRodadoPreview !== null && (
+        {/* Ciclo de Tanque Vazio Preview */}
+        {isAbastecimento && tanqueVazio && emptyTankCyclePreview?.hasCycle && (
+          <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 p-4 rounded-2xl text-white shadow-lg shadow-amber-200 border border-amber-400/40 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white/20 rounded-lg">
+                  <Fuel className="text-white" size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black uppercase tracking-wider text-amber-100">Ciclo de Tanque Vazio Concluído</h4>
+                  <p className="text-[11px] text-amber-100/90 font-medium">Consumo real entre um tanque vazio e outro</p>
+                </div>
+              </div>
+              <span className="px-2 py-0.5 bg-white/25 text-white text-[10px] font-black rounded-full uppercase tracking-wider">
+                {emptyTankCyclePreview.combustivel}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 bg-black/15 p-3 rounded-xl border border-white/10 text-center">
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
+                <p className="text-base font-black text-white">+{emptyTankCyclePreview.kmRodados} km</p>
+                <p className="text-[9px] text-amber-200/80 font-medium">de {emptyTankCyclePreview.startKm} a {emptyTankCyclePreview.endKm}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>
+                <p className="text-base font-black text-white">{emptyTankCyclePreview.combustivelConsumido.toFixed(1)} {emptyTankCyclePreview.unit}</p>
+                <p className="text-[9px] text-amber-200/80 font-medium">no ciclo</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Média Real</p>
+                <p className="text-base font-black text-white">{emptyTankCyclePreview.mediaConsumo.toFixed(2)}</p>
+                <p className="text-[9px] text-amber-200/80 font-medium">km/{emptyTankCyclePreview.unit}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs pt-1 border-t border-white/15 text-amber-100 font-medium">
+              <span className="flex items-center gap-1">
+                <Coins size={14} className="text-amber-200" />
+                Custo: <b>R$ {emptyTankCyclePreview.custoPorKm.toFixed(2)}/km</b>
+              </span>
+              <span>
+                Total gasto no ciclo: <b>R$ {emptyTankCyclePreview.valorConsumido.toFixed(2)}</b> ({emptyTankCyclePreview.diasCiclo} {emptyTankCyclePreview.diasCiclo === 1 ? 'dia' : 'dias'})
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Marco Zero de Tanque Vazio */}
+        {isAbastecimento && tanqueVazio && emptyTankCyclePreview?.isFirstEmptyTank && (
+          <div className="bg-amber-500/10 border border-amber-300 p-4 rounded-2xl flex items-start gap-3">
+            <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm">
+              <Fuel size={18} />
+            </div>
+            <div>
+              <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Marco Zero do Tanque Vazio</h4>
+              <p className="text-xs text-amber-800 font-medium mt-0.5">
+                Este abastecimento servirá como ponto de partida inicial. No seu próximo abastecimento com tanque/cilindro vazio, o aplicativo calculará automaticamente o consumo e a quantidade exata de km rodados!
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Km regular desde o último abastecimento (se não for ciclo de tanque vazio) */}
+        {(!isAbastecimento || !tanqueVazio || !emptyTankCyclePreview?.hasCycle) && kmRodadoPreview !== null && (
           <div className="bg-blue-600 p-4 rounded-2xl flex justify-between items-center shadow-lg shadow-blue-100 border border-blue-500">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-white/20 rounded-lg">

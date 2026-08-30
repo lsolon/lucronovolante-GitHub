@@ -157,8 +157,9 @@ export default function ManualModal({ isOpen, onClose }: ManualModalProps) {
                           </h4>
                           <p className="text-sm text-slate-300 mb-2">Abastecimentos e manutenções variadas.</p>
                           <ul className="text-xs space-y-2 text-slate-400 list-disc list-inside">
-                            <li>Se for "Abastecimento", preencha a quantidade de litros para calcular a média do carro.</li>
-                            <li>Anotar o "Hodômetro / Quilometragem atual" ajudará o app calcular as trocas de óleo.</li>
+                            <li>Se for "Abastecimento", preencha a quantidade de litros/m³ e o valor unitário.</li>
+                            <li><b>Opção "Tanque Vazio":</b> Marque quando abastecer com o tanque ou cilindro zerado/na reserva. No próximo abastecimento com tanque vazio, o app calculará automaticamente quantos km você rodou no ciclo, o consumo médio real (km/L ou km/m³) e o custo por km rodado!</li>
+                            <li>Anotar o "Hodômetro / Quilometragem atual" ajudará o app a calcular as trocas de óleo e ciclos de combustível.</li>
                           </ul>
                         </div>
                       </div>

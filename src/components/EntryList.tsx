@@ -27,11 +27,15 @@ import {
   X,
   Search,
   ChevronDown,
-  Navigation
+  Navigation,
+  Coins,
+  Gauge,
+  Zap
 } from 'lucide-react';
 import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, Category } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
+import { calculateEmptyTankCycle } from '../lib/fuel-calculator';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface EntryListProps {
@@ -417,35 +421,58 @@ export default function EntryList({ entries, categories, earningCategories, refu
                   </div>
                 </div>
                 
-                {category?.nome.toLowerCase() === 'abastecimento' && (entry.combustivel || entry.quantidade || entry.bandeiraPosto || entry.tanqueVazio) && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {entry.bandeiraPosto && (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-200">
-                        {entry.bandeiraPosto}
-                      </span>
-                    )}
-                    {entry.combustivel && (
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-100">
-                        {entry.combustivel}
-                      </span>
-                    )}
-                    {entry.quantidade && (
-                      <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
-                        {entry.quantidade} L/m³
-                      </span>
-                    )}
-                    {entry.valorUnitario && (
-                      <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
-                        {formatCurrency(entry.valorUnitario)}/un
-                      </span>
-                    )}
-                    {entry.tanqueVazio && (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-amber-200 flex items-center gap-1">
-                        <Fuel size={10} /> Tanque Vazio
-                      </span>
-                    )}
-                  </div>
-                )}
+                {category?.nome.toLowerCase() === 'abastecimento' && (entry.combustivel || entry.quantidade || entry.bandeiraPosto || entry.tanqueVazio) && (() => {
+                  const cycle = entry.tanqueVazio ? calculateEmptyTankCycle(entry, entries, categories) : null;
+                  return (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        {entry.bandeiraPosto && (
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-200">
+                            {entry.bandeiraPosto}
+                          </span>
+                        )}
+                        {entry.combustivel && (
+                          <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-100">
+                            {entry.combustivel}
+                          </span>
+                        )}
+                        {entry.quantidade && (
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
+                            {entry.quantidade} L/m³
+                          </span>
+                        )}
+                        {entry.valorUnitario && (
+                          <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
+                            {formatCurrency(entry.valorUnitario)}/un
+                          </span>
+                        )}
+                        {entry.tanqueVazio && (
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-amber-200 flex items-center gap-1">
+                            <Fuel size={10} /> Tanque Vazio
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Informações do Ciclo de Tanque Vazio */}
+                      {cycle && cycle.hasCycle && (
+                        <div className="p-2.5 bg-amber-500/10 border border-amber-300/70 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-1.5 font-black text-amber-950">
+                            <Fuel size={13} className="text-amber-600 shrink-0" />
+                            <span>Ciclo Tanque Vazio: +{cycle.kmRodados} km</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 font-bold text-amber-800 text-[11px]">
+                            <span className="bg-white/90 px-2 py-0.5 rounded-md border border-amber-200 shadow-2xs">
+                              {cycle.mediaConsumo.toFixed(2)} km/{cycle.unit}
+                            </span>
+                            <span className="bg-white/90 px-2 py-0.5 rounded-md border border-amber-200 shadow-2xs">
+                              {formatCurrency(cycle.custoPorKm)}/km
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(entry.location || entry.gps) && (
@@ -666,6 +693,74 @@ export default function EntryList({ entries, categories, earningCategories, refu
                   />
                 )}
               </div>
+
+              {/* Ciclo de Tanque Vazio no Modal */}
+              {selectedEntry.tanqueVazio && (() => {
+                const cycle = calculateEmptyTankCycle(selectedEntry, entries, categories);
+                if (cycle.hasCycle) {
+                  return (
+                    <div className="bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700 rounded-3xl p-5 text-white shadow-lg space-y-4 border border-amber-400/40">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="p-2 bg-white/20 rounded-xl">
+                            <Fuel size={20} className="text-white" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-black uppercase tracking-wider text-amber-100">Desempenho do Ciclo (Tanque Vazio)</h4>
+                            <p className="text-[11px] text-amber-100/90 font-medium">Consumo calculado entre um tanque vazio e outro</p>
+                          </div>
+                        </div>
+                        <span className="px-2.5 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-wider">
+                          {cycle.combustivel}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 bg-black/20 p-3.5 rounded-2xl border border-white/10 text-center">
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Km Rodados</p>
+                          <p className="text-lg font-black text-white">+{cycle.kmRodados} km</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">{cycle.startKm} ➔ {cycle.endKm}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Consumido</p>
+                          <p className="text-lg font-black text-white">{cycle.combustivelConsumido.toFixed(1)} {cycle.unit}</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">no ciclo</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Média Real</p>
+                          <p className="text-lg font-black text-white">{cycle.mediaConsumo.toFixed(2)}</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">km/{cycle.unit}</p>
+                        </div>
+                        <div>
+                          <p className="text-[9px] font-black uppercase tracking-wider text-amber-200">Custo por Km</p>
+                          <p className="text-lg font-black text-white">{formatCurrency(cycle.custoPorKm)}</p>
+                          <p className="text-[9px] text-amber-200/80 font-medium">por km rodado</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between text-xs pt-2 border-t border-white/15 text-amber-100 font-medium gap-2">
+                        <span>Período: <b>{cycle.startDate}</b> até <b>{cycle.endDate}</b> ({cycle.diasCiclo} {cycle.diasCiclo === 1 ? 'dia' : 'dias'})</span>
+                        <span>Total Gasto: <b>{formatCurrency(cycle.valorConsumido)}</b></span>
+                      </div>
+                    </div>
+                  );
+                } else if (cycle.isFirstEmptyTank) {
+                  return (
+                    <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4 flex items-start gap-3">
+                      <div className="p-2 bg-amber-500 text-white rounded-xl shrink-0 shadow-sm">
+                        <Fuel size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-amber-900 uppercase tracking-wider">Marco Zero do Tanque Vazio</h4>
+                        <p className="text-xs text-amber-800 font-medium mt-0.5">
+                          Este abastecimento foi o início do ciclo com tanque vazio. Ao realizar o próximo abastecimento com tanque/cilindro vazio, os quilômetros rodados e a média de consumo serão calculados aqui.
+                        </p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Ganhos Breakdown */}
               {selectedEntry.tipo === 'Ganhos' && selectedEntry.ganhos && (
