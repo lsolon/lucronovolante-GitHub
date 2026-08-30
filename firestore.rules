@@ -76,6 +76,7 @@ service cloud.firestore {
              data.valor is number &&
              data.categoriaId is string &&
              (!('km' in data) || data.km is number) &&
+             (!('tanqueVazio' in data) || data.tanqueVazio is bool) &&
              (!('obs' in data) || (data.obs is string && data.obs.size() < 1000));
     }
 

@@ -22,6 +22,9 @@ jobs:
           service: ${{ secrets.SERVICE_NAME }}
           region: ${{ secrets.REGION }}
           source: .
+          env_vars: |
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            NODE_ENV=production
 
       - name: Setup Node
         uses: actions/setup-node@v4

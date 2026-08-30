@@ -100,24 +100,27 @@ export default function LandingPage({ onLogin, error }: LandingPageProps) {
             <p className="text-lg text-slate-500 mb-8 max-w-lg leading-relaxed">
               A ferramenta definitiva para motoristas de aplicativo, Táxi e entregadores. Controle seus ganhos, despesas e manutenções em tempo real com inteligência financeira.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <div className="relative group">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start w-full">
+              <div className="relative group flex-1 max-w-[240px]">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
                 <button 
                   onClick={onLogin}
-                  className="relative w-full sm:w-auto bg-blue-600 text-white px-8 py-3 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all flex flex-col items-center justify-center gap-1"
+                  className="relative w-full bg-blue-600 text-white px-6 py-3 rounded-2xl font-black text-lg hover:bg-blue-700 transition-all flex flex-col items-center justify-center gap-1 shadow-xl"
                 >
-                  <span className="flex items-center gap-2">Começar Agora <ArrowRight size={18} /></span>
-                  <span className="text-[10px] font-medium bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest text-blue-50">30 dias grátis</span>
+                  <span className="flex items-center gap-2">Teste Grátis <ArrowRight size={18} /></span>
+                  <span className="text-[10px] font-medium bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest text-blue-50">30 dias liberados</span>
                 </button>
               </div>
-              <button 
-                onClick={handleShare}
-                className="bg-slate-100 text-slate-700 px-8 py-4 rounded-2xl font-black text-lg hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
-              >
-                <Share2 size={20} className="text-blue-600" />
-                Compartilhar
-              </button>
+
+              <div className="relative group flex-1 max-w-[240px]">
+                <button 
+                  onClick={onLogin}
+                  className="relative w-full bg-emerald-500 text-white px-6 py-3 rounded-2xl font-black text-lg hover:bg-emerald-600 transition-all flex flex-col items-center justify-center gap-1 shadow-xl"
+                >
+                  <span className="flex items-center gap-2">Assinar Premium</span>
+                  <span className="text-[10px] font-medium bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest text-emerald-50">R$ 97,00 / ano</span>
+                </button>
+              </div>
             </div>
 
             {error && (

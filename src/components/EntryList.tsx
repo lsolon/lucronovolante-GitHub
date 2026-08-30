@@ -417,7 +417,7 @@ export default function EntryList({ entries, categories, earningCategories, refu
                   </div>
                 </div>
                 
-                {category?.nome.toLowerCase() === 'abastecimento' && (entry.combustivel || entry.quantidade || entry.bandeiraPosto) && (
+                {category?.nome.toLowerCase() === 'abastecimento' && (entry.combustivel || entry.quantidade || entry.bandeiraPosto || entry.tanqueVazio) && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {entry.bandeiraPosto && (
                       <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-200">
@@ -437,6 +437,11 @@ export default function EntryList({ entries, categories, earningCategories, refu
                     {entry.valorUnitario && (
                       <span className="px-2 py-0.5 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-slate-100">
                         {formatCurrency(entry.valorUnitario)}/un
+                      </span>
+                    )}
+                    {entry.tanqueVazio && (
+                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-amber-200 flex items-center gap-1">
+                        <Fuel size={10} /> Tanque Vazio
                       </span>
                     )}
                   </div>
@@ -636,6 +641,13 @@ export default function EntryList({ entries, categories, earningCategories, refu
                   <DetailItem 
                     label="Combustível" 
                     value={selectedEntry.combustivel} 
+                    icon={<Fuel size={16} />}
+                  />
+                )}
+                {selectedEntry.tanqueVazio && (
+                  <DetailItem 
+                    label="Estado do Tanque" 
+                    value="Tanque Vazio (Reserva)" 
                     icon={<Fuel size={16} />}
                   />
                 )}

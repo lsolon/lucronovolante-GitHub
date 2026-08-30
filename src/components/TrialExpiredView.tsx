@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { truncateLargeFields } from '../lib/utils';
 import { auth, db } from '../firebase';
 import { doc, collection, getDocs, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
+import { CheckoutButton } from './CheckoutButton';
 
 interface TrialExpiredViewProps {
   onLogout: () => void;
@@ -115,13 +116,12 @@ export default function TrialExpiredView({ onLogout, entries, categories, earnin
         </p>
 
         <div className="space-y-4">
-          <button 
-            onClick={() => window.open('https://wa.me/5511999999999?text=Quero+assinar+o+LucroNoVolante', '_blank')}
-            className="w-full bg-blue-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95"
-          >
-            <CreditCard size={20} />
-            Assinar Agora
-          </button>
+          <CheckoutButton 
+            title="Assinatura Premium LucroNoVolante" 
+            price={97.00} 
+            label="Assinar Agora"
+            className="w-full bg-blue-600 text-white p-4 rounded-2xl font-black flex items-center justify-center gap-3 shadow-xl shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 text-base"
+          />
           
           <button 
             onClick={() => window.open('https://wa.me/5511999999999?text=Tenho+uma+duvida+sobre+o+app', '_blank')}

@@ -152,6 +152,7 @@
         "combustivel": { "type": "string" },
         "quantidade": { "type": "number" },
         "valorUnitario": { "type": "number" },
+        "tanqueVazio": { "type": "boolean", "description": "Indica se o abastecimento foi feito com tanque vazio/reserva" },
         "referenciaMes": { "type": "string" },
         "manutencaoItem": { "type": "string" },
         "garantiaKm": { "type": "number" },

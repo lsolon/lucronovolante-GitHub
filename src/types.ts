@@ -29,6 +29,7 @@ export interface Entry {
   combustivel?: string;
   quantidade?: number;
   valorUnitario?: number;
+  tanqueVazio?: boolean;
   location?: { lat: number; lng: number; address?: string };
   gps?: string; // "lat, lng"
   endereco?: string;

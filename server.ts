@@ -7,15 +7,13 @@ import { GoogleGenAI } from "@google/genai";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import { MercadoPagoConfig, Preference } from 'mercadopago';
+
 // Initialize Gemini
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
-});
+let genAI: any = null;
+if (process.env.GEMINI_API_KEY) {
+  genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+}
 
 async function startServer() {
   const app = express();
@@ -27,7 +25,48 @@ async function startServer() {
 
   // API routes FIRST
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", env: process.env.NODE_ENV });
+    res.json({ status: "ok", env: process.env.NODE_ENV, gemini: !!process.env.GEMINI_API_KEY });
+  });
+
+  app.post("/api/create_preference", async (req, res) => {
+    try {
+      if (!process.env.MERCADOPAGO_ACCESS_TOKEN) {
+        return res.status(500).json({ error: "MERCADOPAGO_ACCESS_TOKEN não configurado." });
+      }
+
+      const client = new MercadoPagoConfig({ accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN });
+      const preference = new Preference(client);
+
+      const { title, quantity, price } = req.body;
+
+      const response = await preference.create({
+        body: {
+          items: [
+            {
+              id: "item-ID-1234",
+              title: title || "Assinatura / Produto",
+              quantity: quantity || 1,
+              unit_price: price || 10,
+              currency_id: "BRL"
+            }
+          ],
+          back_urls: {
+            success: "https://seusite.com/sucesso",
+            failure: "https://seusite.com/falha",
+            pending: "https://seusite.com/pendente"
+          },
+          auto_return: "approved",
+        }
+      });
+
+      res.json({
+        id: response.id,
+        init_point: response.init_point
+      });
+    } catch (error: any) {
+      console.error("Mercado Pago Error:", error);
+      res.status(500).json({ error: "Falha ao criar preferência de pagamento" });
+    }
   });
 
   app.post("/api/gemini", async (req, res) => {
@@ -35,16 +74,27 @@ async function startServer() {
       const { text, history, systemInstruction, imageConfig } = req.body;
       
       if (!text) {
-        return res.status(400).json({ error: "Text is required" });
+        return res.status(400).json({ error: "O texto é obrigatório" });
       }
+
+      if (!process.env.GEMINI_API_KEY || !genAI) {
+        return res.status(500).json({ 
+          error: "GEMINI_API_KEY não configurada no servidor. Se você está fora do AI Studio, precisa configurar esta variável de ambiente no Cloud Run." 
+        });
+      }
+
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        systemInstruction,
+      });
 
       if (imageConfig) {
         // Image Generation
-        const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [{ parts: [{ text: `${systemInstruction}\n\nUsuário pediu: ${text}` }] }],
+        const result = await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: `[GERE UMA IMAGEM BASEADA NESTE PEDIDO: ${text}]` }] }],
         });
 
+        const response = result.response;
         let imageUrl = '';
         let modelText = '';
 
@@ -61,28 +111,22 @@ async function startServer() {
         return res.json({ text: modelText, image: imageUrl });
       } else {
         // Text Generation
-        const formattedHistory = (history || []).map((m: any) => ({
-          role: m.role === 'user' ? 'user' : 'model',
-          parts: [{ text: m.text }]
-        }));
-
-        const response = await ai.models.generateContent({
+        const chatSession = genAI.getGenerativeModel({ 
           model: "gemini-1.5-flash",
-          contents: [
-            ...formattedHistory,
-            { role: 'user', parts: [{ text }] }
-          ],
-          config: {
-            systemInstruction,
-            temperature: 0.7,
-          }
+          systemInstruction,
+        }).startChat({
+          history: (history || []).map((m: any) => ({
+            role: m.role === 'user' ? 'user' : 'model',
+            parts: [{ text: m.text }]
+          })),
         });
 
-        return res.json({ text: response.text });
+        const result = await chatSession.sendMessage(text);
+        return res.json({ text: result.response.text() });
       }
     } catch (error: any) {
       console.error("Gemini API Error:", error);
-      res.status(500).json({ error: error.message || "Failed to generate content" });
+      res.status(500).json({ error: error.message || "Falha ao gerar conteúdo" });
     }
   });
 

@@ -342,6 +342,13 @@ export default function FuelMap({ entries, categories, activeTab }: FuelMapProps
                           <span className="font-bold text-slate-700">{entry.combustivel}</span>
                         </div>
                       )}
+
+                      {entry.tanqueVazio && (
+                        <div className="flex justify-between text-xs bg-amber-50 p-1 rounded font-bold text-amber-800">
+                          <span>Estado:</span>
+                          <span>Tanque Vazio (Reserva)</span>
+                        </div>
+                      )}
                       
                       {/* Show Liters Price if available */}
                       {((entry.valorUnitario && entry.valorUnitario > 0) || (entry.quantidade && entry.quantidade > 0 && entry.valor > 0)) && (

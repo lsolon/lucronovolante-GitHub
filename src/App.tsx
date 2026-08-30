@@ -83,6 +83,7 @@ import AIVideoStudio from './components/AIVideoStudio';
 import firebaseConfig from '../firebase-applet-config.json';
 import MarketingFlyer from './components/MarketingFlyer';
 import ManualModal from './components/ManualModal';
+import SystemMaintenanceView from './components/SystemMaintenanceView';
 
 const APP_VERSION = '1.1.6';
  
@@ -438,7 +439,7 @@ export default function App() {
           appConfig: {
             publishedVersion: '1.1.3',
             betaVersion: '1.1.3',
-            maintenanceMode: true
+            maintenanceMode: false
           },
           isConfigLoaded: true
         }));
@@ -479,6 +480,7 @@ export default function App() {
       
       if (error.code === 'auth/popup-closed-by-user') {
         console.log("Login cancelado pelo usuário (popup fechado).");
+        setAuthError("O login foi cancelado ou o popup foi fechado. Tente novamente ou abra o app em uma nova aba se o problema persistir.");
       } else if (error.code === 'auth/popup-blocked') {
         setAuthError("O popup de login foi bloqueado pelo seu navegador. Por favor, permita popups para este site.");
       } else if (error.code === 'auth/unauthorized-domain') {
@@ -956,6 +958,15 @@ export default function App() {
     );
   }
 
+  if (state.appConfig?.maintenanceMode) {
+    if (!isAdmin) {
+      return <SystemMaintenanceView />;
+    } else {
+      // Admin sees a banner but isn't blocked
+      console.log('Admin bypassing maintenance mode');
+    }
+  }
+
   if (!user) {
     return <LandingPage onLogin={handleLogin} error={authError} />;
   }
@@ -967,20 +978,6 @@ export default function App() {
       categories={state.categories} 
       earningCategories={state.earningCategories} 
     />;
-  }
-
-  if (state.appConfig?.maintenanceMode && !isAdmin) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 text-center">
-        <div className="space-y-4">
-          <AlertCircle className="size-16 text-amber-500 mx-auto" />
-          <h1 className="text-2xl font-bold">Manutenção em Andamento</h1>
-          <p className="text-slate-500 max-w-xs mx-auto">
-            Estamos atualizando o LucroNoVolante para trazer novidades. Voltamos em breve!
-          </p>
-        </div>
-      </div>
-    );
   }
 
   return (

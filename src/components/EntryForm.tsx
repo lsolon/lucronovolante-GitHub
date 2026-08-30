@@ -17,7 +17,8 @@ import {
   CheckCircle2,
   Calendar,
   Star,
-  Coins
+  Coins,
+  Check
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -76,6 +77,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
   const [combustivel, setCombustivel] = useState(initialData?.combustivel || 'Gasolina');
   const [quantidade, setQuantidade] = useState(initialData?.quantidade?.toString() || '');
   const [valorUnitario, setValorUnitario] = useState(initialData?.valorUnitario?.toString() || '');
+  const [tanqueVazio, setTanqueVazio] = useState<boolean>(initialData?.tanqueVazio || false);
   const [bandeiraPosto, setBandeiraPosto] = useState(initialData?.bandeiraPosto || '');
   const [linkNota, setLinkNota] = useState(initialData?.linkNota || '');
   const [location, setLocation] = useState<{ lat: number; lng: number; address?: string } | null>(() => {
@@ -628,6 +630,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
             km: i === 0 ? validKm : undefined,
             kmRodado: i === 0 ? (initialData?.kmRodado || kmRodado) : undefined,
             combustivel: isAbastecimento ? combustivel : undefined,
+            tanqueVazio: i === 0 ? (isAbastecimento ? tanqueVazio : undefined) : undefined,
             quantidade: i === 0 ? (isNaN(currentQty as number) ? undefined : currentQty) : undefined,
             valorUnitario: i === 0 ? (isNaN(currentPrice as number) ? undefined : currentPrice) : undefined,
             bandeiraPosto: i === 0 ? (isAbastecimento ? bandeiraPosto : undefined) : undefined,
@@ -664,6 +667,7 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
       km: validKm,
       kmRodado: initialData?.kmRodado || kmRodado,
       combustivel: isAbastecimento ? combustivel : undefined,
+      tanqueVazio: isAbastecimento ? tanqueVazio : undefined,
       quantidade: isNaN(currentQty as number) ? undefined : currentQty,
       valorUnitario: isNaN(currentPrice as number) ? undefined : currentPrice,
       bandeiraPosto: isAbastecimento ? bandeiraPosto : undefined,
@@ -1023,6 +1027,49 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                   <span className="font-black text-blue-800">R$ {valor}</span>
                 </div>
               )}
+
+              {/* Opção Marcar como Tanque Vazio */}
+              <div 
+                id="fuel-empty-tank-toggle"
+                onClick={() => setTanqueVazio(!tanqueVazio)}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between select-none",
+                  tanqueVazio 
+                    ? "bg-amber-500/10 border-amber-300 shadow-sm" 
+                    : "bg-slate-50 border-slate-200/80 hover:bg-slate-100/70"
+                )}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0",
+                    tanqueVazio ? "bg-amber-500 text-white shadow-sm" : "bg-white text-slate-400 border border-slate-200"
+                  )}>
+                    <Fuel size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-black text-slate-800">Abastecido com Tanque Vazio</span>
+                      {tanqueVazio && (
+                        <span className="px-2 py-0.5 bg-amber-200 text-amber-900 text-[10px] font-black rounded-full uppercase tracking-wider">
+                          Reserva
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-0.5">
+                      Marque se o veículo estava no final do tanque ou na reserva
+                    </p>
+                  </div>
+                </div>
+                
+                <div className={cn(
+                  "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ml-3 shrink-0",
+                  tanqueVazio 
+                    ? "bg-amber-500 border-amber-500 text-white shadow-sm" 
+                    : "border-slate-300 bg-white"
+                )}>
+                  {tanqueVazio && <Check size={14} strokeWidth={3} />}
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <button

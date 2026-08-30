@@ -74,6 +74,8 @@ interface SettingsViewProps {
   setIsAIVideoStudioOpen: (open: boolean) => void;
 }
 
+import { CheckoutButton } from './CheckoutButton';
+
 export default function SettingsView({ 
   fixedCosts, 
   onUpdateFixedCosts, 
@@ -297,6 +299,7 @@ export default function SettingsView({
           KM: entry.km || '',
           Km_Rodado: entry.kmRodado || '',
           Combustivel: entry.combustivel || '',
+          Tanque_Vazio: entry.tanqueVazio ? 'Sim' : '',
           Quantidade: entry.quantidade || '',
           Valor_Unitario: entry.valorUnitario || '',
           Observacoes: entry.obs || '',
@@ -494,6 +497,7 @@ export default function SettingsView({
             km: (row.KM && !isNaN(Number(row.KM))) ? Number(row.KM) : undefined,
             kmRodado: (row.Km_Rodado && !isNaN(Number(row.Km_Rodado))) ? Number(row.Km_Rodado) : undefined,
             combustivel: row.Combustivel || row.Fuel || undefined,
+            tanqueVazio: (row.Tanque_Vazio === 'Sim' || row.Tanque_Vazio === true || row.Tanque_Vazio === 'true' || row.Tanque_Vazio === 1 || row.TanqueVazio === 'Sim' || row.TanqueVazio === true) ? true : undefined,
             quantidade: (row.Quantidade && !isNaN(Number(row.Quantidade))) ? Number(row.Quantidade) : undefined,
             valorUnitario: (row.Valor_Unitario && !isNaN(Number(row.Valor_Unitario))) ? Number(row.Valor_Unitario) : undefined,
             obs: row.Observacoes || row.Notes || row.obs || undefined,
@@ -863,6 +867,30 @@ export default function SettingsView({
               <div className="flex gap-4 pt-2">
                 <button onClick={() => setModalType('terms')} className="flex-1 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">Termos de Uso</button>
                 <button onClick={() => setModalType('privacy')} className="flex-1 py-3 bg-blue-50 text-blue-700 rounded-xl font-bold text-sm hover:bg-blue-100 transition-all">Privacidade</button>
+              </div>
+            </div>
+
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="p-2 bg-emerald-50 rounded-xl">
+                  <Wallet className="text-emerald-600 size-5" />
+                </div>
+                <h3 className="font-bold text-slate-800">Assinatura Premium</h3>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Adquira ou renove sua assinatura Premium de forma segura através do Mercado Pago.
+              </p>
+              
+              <div className="bg-slate-50 p-4 border border-slate-100 rounded-2xl flex flex-col gap-4">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-slate-700">Plano Anual</span>
+                  <span className="font-black text-emerald-600 text-lg">R$ 97,00</span>
+                </div>
+                <CheckoutButton 
+                  title="Assinatura Premium LucroNoVolante" 
+                  price={97.00} 
+                  className="w-full"
+                />
               </div>
             </div>
 
