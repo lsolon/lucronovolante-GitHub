@@ -309,10 +309,21 @@ export default function SettingsView({
           Foto: entry.photoUrl || ''
         };
 
-        if (entry.tipo === 'Ganhos' && entry.ganhos) {
-          const platformGanhos: Record<string, number> = {};
+        if (entry.tipo === 'Ganhos') {
+          const platformGanhos: Record<string, any> = {
+            Total_Corridas: entry.totalCorridas || '',
+            Tempo_Trabalho: entry.tempoTrabalho || ''
+          };
           earningCategories.forEach(cat => {
-            platformGanhos[`Ganho_${cat.nome}`] = entry.ganhos?.[cat.id] || 0;
+            if (entry.ganhos?.[cat.id] !== undefined) {
+              platformGanhos[`Ganho_${cat.nome}`] = entry.ganhos[cat.id];
+            }
+            if (entry.ganhosDetalhes?.[cat.id]) {
+              const det = entry.ganhosDetalhes[cat.id];
+              if (det.corridas) platformGanhos[`Corridas_${cat.nome}`] = det.corridas;
+              if (det.tempoTrabalho) platformGanhos[`Tempo_${cat.nome}`] = det.tempoTrabalho;
+              if (det.kmRodado) platformGanhos[`Km_${cat.nome}`] = det.kmRodado;
+            }
           });
           return { ...base, ...platformGanhos };
         }
@@ -570,6 +581,45 @@ export default function SettingsView({
                   }
                 }
               }
+            }
+
+            const platformDetalhes: Record<string, any> = {};
+            let sumCorridas = 0;
+            let sumKm = 0;
+
+            earningCategories.forEach(cat => {
+              const corridas = row[`Corridas_${cat.nome}`];
+              const tempo = row[`Tempo_${cat.nome}`];
+              const km = row[`Km_${cat.nome}`];
+
+              if (corridas || tempo || km) {
+                const corridasNum = corridas ? Number(corridas) : undefined;
+                const kmNum = km ? Number(km) : undefined;
+                const tempoStr = tempo ? String(tempo).trim() : undefined;
+                
+                platformDetalhes[cat.id] = {
+                  ...(corridasNum ? { corridas: corridasNum } : {}),
+                  ...(tempoStr ? { tempoTrabalho: tempoStr } : {}),
+                  ...(kmNum ? { kmRodado: kmNum } : {})
+                };
+
+                if (corridasNum) sumCorridas += corridasNum;
+                if (kmNum) sumKm += kmNum;
+              }
+            });
+
+            if (Object.keys(platformDetalhes).length > 0) {
+              entry.ganhosDetalhes = platformDetalhes;
+            }
+
+            if (row.Total_Corridas) {
+              entry.totalCorridas = Number(row.Total_Corridas);
+            } else if (sumCorridas > 0) {
+              entry.totalCorridas = sumCorridas;
+            }
+
+            if (row.Tempo_Trabalho) {
+              entry.tempoTrabalho = String(row.Tempo_Trabalho).trim();
             }
 
             entry.ganhos = platformGanhos;

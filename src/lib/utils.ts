@@ -122,3 +122,39 @@ export function truncateLargeFields<T>(obj: T, maxLength = 500000): T {
 
   return newObj as T;
 }
+
+/**
+ * Converte string de tempo (ex: "06:30", "6h30", "6.5", "6h 30m") em minutos totais.
+ */
+export function parseTimeToMinutes(timeStr?: string): number {
+  if (!timeStr) return 0;
+  const str = timeStr.trim();
+  if (str.includes(':')) {
+    const [h, m] = str.split(':').map(v => parseInt(v, 10) || 0);
+    return (h * 60) + m;
+  }
+  const hMatch = str.match(/(\d+)\s*h/i);
+  const mMatch = str.match(/(\d+)\s*m/i);
+  if (hMatch || mMatch) {
+    const h = hMatch ? parseInt(hMatch[1], 10) : 0;
+    const m = mMatch ? parseInt(mMatch[1], 10) : 0;
+    return (h * 60) + m;
+  }
+  const num = parseFloat(str.replace(',', '.'));
+  if (!isNaN(num)) {
+    return Math.round(num * 60);
+  }
+  return 0;
+}
+
+/**
+ * Formata minutos em formato legível (ex: "6h 30m" ou "45m").
+ */
+export function formatMinutesToDisplay(minutes?: number): string {
+  if (!minutes || minutes <= 0) return '';
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}

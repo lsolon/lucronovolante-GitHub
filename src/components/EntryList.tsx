@@ -30,7 +30,10 @@ import {
   Navigation,
   Coins,
   Gauge,
-  Zap
+  Zap,
+  Clock,
+  Timer,
+  Hash
 } from 'lucide-react';
 import { cn, parseEntryDate } from '../lib/utils';
 import { Entry, Category } from '../types';
@@ -474,6 +477,52 @@ export default function EntryList({ entries, categories, earningCategories, refu
                   );
                 })()}
 
+                {entry.tipo === 'Ganhos' && (entry.totalCorridas || entry.tempoTrabalho || entry.ganhosDetalhes) && (() => {
+                  let corridasSum = entry.totalCorridas || 0;
+                  let tempoDisplay = entry.tempoTrabalho || '';
+                  let kmSum = 0;
+
+                  if (entry.ganhosDetalhes) {
+                    Object.values(entry.ganhosDetalhes).forEach(d => {
+                      if (!corridasSum && d.corridas) corridasSum += d.corridas;
+                      if (d.kmRodado) kmSum += d.kmRodado;
+                    });
+                  }
+
+                  const mediaPorCorrida = (entry.valor && corridasSum > 0) ? (entry.valor / corridasSum) : 0;
+                  const mediaPorHora = (entry.valor && entry.tempoTrabalhoMinutos && entry.tempoTrabalhoMinutos > 0) ? (entry.valor / (entry.tempoTrabalhoMinutos / 60)) : 0;
+
+                  return (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {corridasSum > 0 && (
+                        <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-emerald-100 flex items-center gap-1">
+                          <Hash size={11} className="text-emerald-500" /> {corridasSum} {corridasSum === 1 ? 'corrida' : 'corridas'}
+                        </span>
+                      )}
+                      {tempoDisplay && (
+                        <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-blue-100 flex items-center gap-1">
+                          <Clock size={11} className="text-blue-500" /> {tempoDisplay}
+                        </span>
+                      )}
+                      {kmSum > 0 && (
+                        <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-indigo-100 flex items-center gap-1">
+                          <Navigation size={11} className="text-indigo-500" /> {kmSum.toLocaleString('pt-BR')} km
+                        </span>
+                      )}
+                      {mediaPorHora > 0 && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black border border-slate-200">
+                          {formatCurrency(mediaPorHora)}/h
+                        </span>
+                      )}
+                      {mediaPorCorrida > 0 && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-lg text-[10px] font-black border border-slate-200">
+                          {formatCurrency(mediaPorCorrida)}/corr
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(entry.location || entry.gps) && (
                     <a 
@@ -764,16 +813,74 @@ export default function EntryList({ entries, categories, earningCategories, refu
 
               {/* Ganhos Breakdown */}
               {selectedEntry.tipo === 'Ganhos' && selectedEntry.ganhos && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Detalhamento por Plataforma</h4>
-                  <div className="bg-slate-50 rounded-3xl p-4 space-y-3 border border-slate-100">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest ml-1">Detalhamento por Plataforma</h4>
+                  </div>
+                  
+                  <div className="space-y-3">
                     {Object.entries(selectedEntry.ganhos).map(([catId, val], idx) => {
                       const cat = earningCategories.find(c => c.id === catId);
                       if (!val) return null;
+                      const detail = selectedEntry.ganhosDetalhes?.[catId];
+                      const corridas = detail?.corridas;
+                      const tempo = detail?.tempoTrabalho;
+                      const km = detail?.kmRodado;
+                      const tempoMins = detail?.tempoMinutos;
+
+                      const valPorCorrida = (val > 0 && corridas && corridas > 0) ? (val / corridas) : 0;
+                      const valPorHora = (val > 0 && tempoMins && tempoMins > 0) ? (val / (tempoMins / 60)) : 0;
+                      const valPorKm = (val > 0 && km && km > 0) ? (val / km) : 0;
+
                       return (
-                        <div key={`${catId}-${idx}`} className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-slate-600">{cat?.nome || 'Outros Ganhos'}</span>
-                          <span className="text-sm font-black text-emerald-600">{formatCurrency(val)}</span>
+                        <div key={`${catId}-${idx}`} className="bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-bold text-slate-800">{cat?.nome || 'Outros Ganhos'}</span>
+                            <span className="text-base font-black text-emerald-600">{formatCurrency(val)}</span>
+                          </div>
+
+                          {(corridas || tempo || km) && (
+                            <div className="pt-2 border-t border-slate-200/60 flex flex-wrap gap-2 text-xs">
+                              {corridas && (
+                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
+                                  <Hash size={12} className="text-emerald-500" /> {corridas} {corridas === 1 ? 'corrida' : 'corridas'}
+                                </span>
+                              )}
+                              {tempo && (
+                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
+                                  <Clock size={12} className="text-blue-500" /> {tempo} trabalhado
+                                </span>
+                              )}
+                              {km && (
+                                <span className="px-2 py-1 bg-white rounded-lg border border-slate-200 text-slate-700 font-bold flex items-center gap-1">
+                                  <Navigation size={12} className="text-indigo-500" /> {km} km rodados
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {(valPorCorrida > 0 || valPorHora > 0 || valPorKm > 0) && (
+                            <div className="grid grid-cols-3 gap-1.5 pt-1 text-center">
+                              {valPorCorrida > 0 && (
+                                <div className="bg-emerald-50/60 p-1.5 rounded-lg border border-emerald-100/80">
+                                  <span className="block text-[9px] font-bold text-emerald-600 uppercase">Média / Corr</span>
+                                  <span className="text-[11px] font-black text-emerald-700">{formatCurrency(valPorCorrida)}</span>
+                                </div>
+                              )}
+                              {valPorHora > 0 && (
+                                <div className="bg-blue-50/60 p-1.5 rounded-lg border border-blue-100/80">
+                                  <span className="block text-[9px] font-bold text-blue-600 uppercase">Média / Hora</span>
+                                  <span className="text-[11px] font-black text-blue-700">{formatCurrency(valPorHora)}/h</span>
+                                </div>
+                              )}
+                              {valPorKm > 0 && (
+                                <div className="bg-indigo-50/60 p-1.5 rounded-lg border border-indigo-100/80">
+                                  <span className="block text-[9px] font-bold text-indigo-600 uppercase">Ganho / Km</span>
+                                  <span className="text-[11px] font-black text-indigo-700">{formatCurrency(valPorKm)}/km</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

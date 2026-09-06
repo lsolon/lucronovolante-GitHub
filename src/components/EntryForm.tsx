@@ -8,6 +8,7 @@ import {
   Navigation, 
   MoreHorizontal,
   ChevronDown,
+  ChevronUp,
   Save,
   MapPin,
   AlertCircle,
@@ -21,7 +22,10 @@ import {
   Check,
   Gauge,
   Zap,
-  Info
+  Info,
+  Clock,
+  Timer,
+  Hash
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { auth } from '../firebase';
@@ -29,8 +33,8 @@ import { format, addMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../firebase';
-import { cn, compressImage, parseEntryDate } from '../lib/utils';
-import { Entry, EntryType, Category, FixedCost } from '../types';
+import { cn, compressImage, parseEntryDate, parseTimeToMinutes, formatMinutesToDisplay } from '../lib/utils';
+import { Entry, EntryType, Category, FixedCost, PlatformEarningDetail } from '../types';
 import { getCategoryStyle } from '../lib/category-styles';
 import { GAS_STATIONS } from '../constants';
 import { extractInvoiceDataFromImage, extractInvoiceDataFromText } from '../services/geminiService';
@@ -64,6 +68,27 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     const initial: Record<string, string> = {};
     earningCategories.forEach(cat => {
       initial[cat.id] = initialData?.ganhos?.[cat.id]?.toString() || '';
+    });
+    return initial;
+  });
+  const [ganhosDetalhes, setGanhosDetalhes] = useState<Record<string, { corridas: string; tempoTrabalho: string; kmRodado: string }>>(() => {
+    const initial: Record<string, { corridas: string; tempoTrabalho: string; kmRodado: string }> = {};
+    earningCategories.forEach(cat => {
+      const det = initialData?.ganhosDetalhes?.[cat.id];
+      initial[cat.id] = {
+        corridas: det?.corridas !== undefined ? det.corridas.toString() : '',
+        tempoTrabalho: det?.tempoTrabalho || '',
+        kmRodado: det?.kmRodado !== undefined ? det.kmRodado.toString() : ''
+      };
+    });
+    return initial;
+  });
+  const [expandedPlatformDetails, setExpandedPlatformDetails] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    earningCategories.forEach(cat => {
+      const det = initialData?.ganhosDetalhes?.[cat.id];
+      const hasAny = !!(det && (det.corridas || det.tempoTrabalho || det.kmRodado));
+      initial[cat.id] = hasAny;
     });
     return initial;
   });
@@ -493,6 +518,58 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
     return gTotal + rTotal;
   }, [tipo, ganhos, reembolsos, showRefunds, valor]);
 
+  const earningsSummaryMetrics = useMemo(() => {
+    let totalCorridas = 0;
+    let totalMinutos = 0;
+    let totalKmPlataformas = 0;
+    let totalGanhos = 0;
+
+    earningCategories.forEach(cat => {
+      const val = Number(ganhos[cat.id]?.toString().replace(',', '.')) || 0;
+      const det = ganhosDetalhes[cat.id];
+      const corridas = parseInt(det?.corridas || '0', 10);
+      const mins = parseTimeToMinutes(det?.tempoTrabalho);
+      const kmPlat = parseFloat(det?.kmRodado?.replace(',', '.') || '0');
+
+      totalGanhos += val;
+      if (!isNaN(corridas) && corridas > 0) totalCorridas += corridas;
+      if (mins > 0) totalMinutos += mins;
+      if (!isNaN(kmPlat) && kmPlat > 0) totalKmPlataformas += kmPlat;
+    });
+
+    const mediaPorCorrida = (totalGanhos > 0 && totalCorridas > 0) ? (totalGanhos / totalCorridas) : 0;
+    const mediaPorHora = (totalGanhos > 0 && totalMinutos > 0) ? (totalGanhos / (totalMinutos / 60)) : 0;
+    const mediaPorKm = (totalGanhos > 0 && totalKmPlataformas > 0) ? (totalGanhos / totalKmPlataformas) : 0;
+
+    return {
+      totalCorridas,
+      totalMinutos,
+      totalKmPlataformas,
+      tempoFormatado: formatMinutesToDisplay(totalMinutos),
+      mediaPorCorrida,
+      mediaPorHora,
+      mediaPorKm,
+      hasDetails: totalCorridas > 0 || totalMinutos > 0 || totalKmPlataformas > 0
+    };
+  }, [ganhos, ganhosDetalhes, earningCategories]);
+
+  const handlePlatformDetailChange = (catId: string, field: 'corridas' | 'tempoTrabalho' | 'kmRodado', value: string) => {
+    setGanhosDetalhes(prev => ({
+      ...prev,
+      [catId]: {
+        ...(prev[catId] || { corridas: '', tempoTrabalho: '', kmRodado: '' }),
+        [field]: value
+      }
+    }));
+  };
+
+  const togglePlatformDetails = (catId: string) => {
+    setExpandedPlatformDetails(prev => ({
+      ...prev,
+      [catId]: !prev[catId]
+    }));
+  };
+
   const todayEarnings = useMemo(() => {
     return entries
       .filter(e => {
@@ -577,7 +654,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
 
     let entryValor = 0;
     const numericGanhos: Record<string, number> = {};
+    const numericGanhosDetalhes: Record<string, PlatformEarningDetail> = {};
     const numericReembolsos: Record<string, number> = {};
+    let totalCorridasCalc = 0;
+    let totalMinutosCalc = 0;
 
     if (tipo === 'Ganhos') {
       Object.entries(ganhos).forEach(([id, val]) => {
@@ -585,6 +665,28 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
         if (!isNaN(n) && n > 0) {
           numericGanhos[id] = n;
           entryValor += n;
+        }
+      });
+
+      earningCategories.forEach(cat => {
+        const det = ganhosDetalhes[cat.id];
+        if (!det) return;
+        const corridasNum = parseInt(det.corridas, 10);
+        const tempoStr = det.tempoTrabalho?.trim();
+        const mins = tempoStr ? parseTimeToMinutes(tempoStr) : 0;
+        const kmPlat = parseFloat(det.kmRodado?.replace(',', '.') || '');
+
+        const hasAny = (!isNaN(corridasNum) && corridasNum > 0) || (mins > 0) || (!isNaN(kmPlat) && kmPlat > 0);
+        if (hasAny) {
+          numericGanhosDetalhes[cat.id] = {
+            corridas: !isNaN(corridasNum) && corridasNum > 0 ? corridasNum : undefined,
+            tempoTrabalho: tempoStr || undefined,
+            tempoMinutos: mins > 0 ? mins : undefined,
+            kmRodado: !isNaN(kmPlat) && kmPlat > 0 ? kmPlat : undefined
+          };
+
+          if (!isNaN(corridasNum) && corridasNum > 0) totalCorridasCalc += corridasNum;
+          if (mins > 0) totalMinutosCalc += mins;
         }
       });
 
@@ -711,6 +813,10 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
       qrCodeData: qrCodeData || undefined,
       linkNota: linkNota || undefined,
       ganhos: numericGanhos,
+      ganhosDetalhes: Object.keys(numericGanhosDetalhes).length > 0 ? numericGanhosDetalhes : undefined,
+      totalCorridas: totalCorridasCalc > 0 ? totalCorridasCalc : undefined,
+      tempoTrabalho: totalMinutosCalc > 0 ? formatMinutesToDisplay(totalMinutosCalc) : undefined,
+      tempoTrabalhoMinutos: totalMinutosCalc > 0 ? totalMinutosCalc : undefined,
       reembolsos: showRefunds ? numericReembolsos : undefined,
       obs,
       referenciaMes: isFixedCost ? referenciaMes : undefined,
@@ -819,17 +925,138 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
 
       {tipo === 'Ganhos' ? (
         <div className="space-y-4">
-          {earningCategories.map((cat, idx) => (
-            <InputGroup 
-              key={`${cat.id}-${idx}`}
-              label={`Ganhos ${cat.nome}`} 
-              value={ganhos[cat.id] || ''} 
-              onChange={(v) => handleGanhosChange(cat.id, v)} 
-              placeholder="R$ 0,00" 
-              type="number"
-              icon={cat.nome.toLowerCase() === 'uber' ? <Car className="text-slate-400" size={18} /> : <MoreHorizontal className="text-slate-400" size={18} />}
-            />
-          ))}
+          {earningCategories.map((cat, idx) => {
+            const catVal = ganhos[cat.id] || '';
+            const numVal = Number(catVal.replace(',', '.')) || 0;
+            const det = ganhosDetalhes[cat.id] || { corridas: '', tempoTrabalho: '', kmRodado: '' };
+            const isExpanded = expandedPlatformDetails[cat.id];
+            const hasDetails = !!(det.corridas || det.tempoTrabalho || det.kmRodado);
+            
+            const corridasNum = parseInt(det.corridas, 10);
+            const tempoMinutes = parseTimeToMinutes(det.tempoTrabalho);
+            const kmNum = parseFloat(det.kmRodado?.replace(',', '.') || '');
+
+            const kpiPorCorrida = (numVal > 0 && !isNaN(corridasNum) && corridasNum > 0) ? (numVal / corridasNum) : 0;
+            const kpiPorHora = (numVal > 0 && tempoMinutes > 0) ? (numVal / (tempoMinutes / 60)) : 0;
+            const kpiPorKm = (numVal > 0 && !isNaN(kmNum) && kmNum > 0) ? (numVal / kmNum) : 0;
+
+            return (
+              <div key={`${cat.id}-${idx}`} className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-sm space-y-3 transition-all">
+                <InputGroup 
+                  label={`Ganhos ${cat.nome}`} 
+                  value={ganhos[cat.id] || ''} 
+                  onChange={(v) => handleGanhosChange(cat.id, v)} 
+                  placeholder="R$ 0,00" 
+                  type="number"
+                  icon={cat.nome.toLowerCase() === 'uber' ? <Car className="text-slate-400" size={18} /> : <MoreHorizontal className="text-slate-400" size={18} />}
+                />
+
+                {/* Expand/Collapse Platform Details Button */}
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    type="button"
+                    onClick={() => togglePlatformDetails(cat.id)}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1.5 py-1 px-2.5 rounded-lg hover:bg-blue-50 transition-colors"
+                  >
+                    <Clock size={14} className="text-blue-500" />
+                    <span>{isExpanded ? 'Ocultar detalhes da plataforma' : (hasDetails ? 'Editar detalhes (Corridas, Horas, Km)' : '+ Inserir corridas, tempo e km')}</span>
+                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
+
+                  {!isExpanded && hasDetails && (
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                      {det.corridas && <span>🚗 {det.corridas} corr</span>}
+                      {det.tempoTrabalho && <span>⏱️ {det.tempoTrabalho}</span>}
+                      {det.kmRodado && <span>🛣️ {det.kmRodado} km</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Expanded Platform Details Fields */}
+                {isExpanded && (
+                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/60 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                        <Timer size={13} className="text-blue-500" /> Detalhes de Produção: {cat.nome}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Corridas */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <Hash size={12} className="text-slate-400" /> Corridas Realizadas
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Ex: 14"
+                          value={det.corridas}
+                          onChange={(e) => handlePlatformDetailChange(cat.id, 'corridas', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Tempo de Trabalho */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <Clock size={12} className="text-slate-400" /> Tempo Trabalhado
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Ex: 06:30 ou 6h 30m"
+                          value={det.tempoTrabalho}
+                          onChange={(e) => handlePlatformDetailChange(cat.id, 'tempoTrabalho', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+
+                      {/* Km Rodados */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                          <Navigation size={12} className="text-slate-400" /> Km Rodado (Plataforma)
+                        </label>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0"
+                          placeholder="Ex: 120"
+                          value={det.kmRodado}
+                          onChange={(e) => handlePlatformDetailChange(cat.id, 'kmRodado', e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Real-time platform KPI metrics */}
+                    {(kpiPorCorrida > 0 || kpiPorHora > 0 || kpiPorKm > 0) && (
+                      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60">
+                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                          <span className="block text-[9px] font-bold uppercase text-slate-400">Média / Corrida</span>
+                          <span className="text-xs font-black text-emerald-600">
+                            {kpiPorCorrida > 0 ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpiPorCorrida) : '-'}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                          <span className="block text-[9px] font-bold uppercase text-slate-400">Média / Hora</span>
+                          <span className="text-xs font-black text-blue-600">
+                            {kpiPorHora > 0 ? `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpiPorHora)}/h` : '-'}
+                          </span>
+                        </div>
+                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                          <span className="block text-[9px] font-bold uppercase text-slate-400">Ganho / Km</span>
+                          <span className="text-xs font-black text-indigo-600">
+                            {kpiPorKm > 0 ? `${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(kpiPorKm)}/km` : '-'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* Reembolso Toggle */}
           <div className="pt-2">
@@ -883,6 +1110,54 @@ export default function EntryForm({ onSubmit, categories, earningCategories, ref
                   </span>
                 </div>
               </div>
+
+              {earningsSummaryMetrics.hasDetails && (
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white p-4 rounded-2xl shadow-md space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                      <Zap size={14} className="text-amber-400" /> Resumo de Produtividade do Lançamento
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    {earningsSummaryMetrics.totalCorridas > 0 && (
+                      <div className="bg-white/10 rounded-xl p-2.5">
+                        <span className="block text-[10px] font-semibold text-slate-300">Total Corridas</span>
+                        <span className="text-base font-black text-white">{earningsSummaryMetrics.totalCorridas}</span>
+                        {earningsSummaryMetrics.mediaPorCorrida > 0 && (
+                          <span className="block text-[10px] text-emerald-400 font-bold">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsSummaryMetrics.mediaPorCorrida)}/corr
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {earningsSummaryMetrics.totalMinutos > 0 && (
+                      <div className="bg-white/10 rounded-xl p-2.5">
+                        <span className="block text-[10px] font-semibold text-slate-300">Tempo Trabalho</span>
+                        <span className="text-base font-black text-white">{earningsSummaryMetrics.tempoFormatado}</span>
+                        {earningsSummaryMetrics.mediaPorHora > 0 && (
+                          <span className="block text-[10px] text-blue-400 font-bold">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsSummaryMetrics.mediaPorHora)}/h
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {earningsSummaryMetrics.totalKmPlataformas > 0 && (
+                      <div className="bg-white/10 rounded-xl p-2.5">
+                        <span className="block text-[10px] font-semibold text-slate-300">Km Plataforma</span>
+                        <span className="text-base font-black text-white">{earningsSummaryMetrics.totalKmPlataformas.toLocaleString('pt-BR')} km</span>
+                        {earningsSummaryMetrics.mediaPorKm > 0 && (
+                          <span className="block text-[10px] text-amber-400 font-bold">
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(earningsSummaryMetrics.mediaPorKm)}/km
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

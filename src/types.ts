@@ -15,6 +15,13 @@ export interface FixedCost {
   dataFim?: string; // YYYY-MM
 }
 
+export interface PlatformEarningDetail {
+  corridas?: number;
+  tempoTrabalho?: string; // e.g. "06:30" ou "6h 30m"
+  tempoMinutos?: number; // minutos totais trabalhados
+  kmRodado?: number; // km rodados na plataforma
+}
+
 export interface Entry {
   id: string;
   data: string; // YYYY/MM/DD
@@ -39,6 +46,10 @@ export interface Entry {
   obs?: string;
   referenciaMes?: string; // YYYY-MM
   ganhos?: Record<string, number>; // Dynamic earnings by category ID
+  ganhosDetalhes?: Record<string, PlatformEarningDetail>; // Detalhes por plataforma (corridas, tempo, km)
+  totalCorridas?: number;
+  tempoTrabalho?: string;
+  tempoTrabalhoMinutos?: number;
   reembolsos?: Record<string, number>; // Dynamic refunds by category ID
   ratings?: {
     servico: number;
